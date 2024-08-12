@@ -2,40 +2,44 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"os"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/joho/godotenv"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
+type User struct {
+	ID   uint   `gorm:"primaryKey"`
+	Name string `gorm:"size:100"`
+	Age  int
+}
+
 func main() {
-	fmt.Println("Hello there")
-
-	if os.Getenv("ENV") != "production" {
-		// Load the .env file if not in production
-		err := godotenv.Load(".env")
-		if err != nil {
-			log.Fatal("Error loading .env file:", err)
-		}
+	// Open a connection to the database
+	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+	if err != nil {
+		panic("failed to connect to the database")
 	}
 
-	app := fiber.New()
+	// Migrate the schema
+	db.AutoMigrate(&User{})
 
-	app.Use(cors.New(cors.Config{
-		AllowOrigins: "http://localhost:5173",
-		AllowHeaders: "Origin,Content-Type,Accept",
-	}))
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "5000"
+	// Define multiple users
+	users := []User{
+		{Name: "John", Age: 25},
+		{Name: "Alice", Age: 30},
+		{Name: "Bob", Age: 35},
 	}
 
-	app.Get("/", func(c *fiber.Ctx) error {
-		return c.Status(200).JSON(fiber.Map{"msg": "hello there"})
-	})
+	// Create multiple users with a single operation
+	result := db.Create(&users)
 
-	log.Fatal(app.Listen("0.0.0.0:" + port))
+	// Check for errors
+	if result.Error != nil {
+		panic(result.Error)
+	}
+
+	// Print the IDs of the created users
+	for _, user := range users {
+		fmt.Printf("Created User: ID=%d, Name=%s, Age=%d\n", user.ID, user.Name, user.Age)
+	}
 }
