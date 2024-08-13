@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"
@@ -12,9 +13,11 @@ import (
 )
 
 type User struct {
-	ID   uint   `gorm:"primaryKey"`
-	Name string `gorm:"size:100"`
-	Age  int
+	ID        uint   `gorm:"primaryKey"`
+	Name      string `gorm:"size:100"`
+	Age       int
+	CreatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
 func main() {
@@ -58,21 +61,34 @@ func main() {
 		// Parse the request body into the UserRequest struct
 		var userReq UserRequest
 		if err := c.BodyParser(&userReq); err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "Cannot parse JSON",
-			})
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Cannot parse JSON"})
 		}
 
 		// Call the CreateUser function to create a new user
 		user, err := CreateUser(db, userReq.Name, userReq.Age)
 		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Failed to create user",
-			})
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create user"})
 		}
 
 		// Return the created user as a JSON response
 		return c.JSON(user)
+	})
+
+	// DELETE /users/:id - Soft delete a user
+	app.Delete("/users/:id", func(c *fiber.Ctx) error {
+		// Parse the user ID from the route parameters
+		id, err := c.ParamsInt("id")
+		if err != nil || id <= 0 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid user ID"})
+		}
+
+		// Call the DeleteUser function to perform a soft delete
+		if err := DeleteUser(db, uint(id)); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		}
+
+		// Return a success response
+		return c.SendStatus(fiber.StatusNoContent)
 	})
 
 	port := os.Getenv("PORT")
@@ -108,10 +124,12 @@ func ConnectDB(dsn string) (*gorm.DB, error) {
 
 func GetUsers(db *gorm.DB) ([]User, error) {
 	var users []User
+	// result := db.Unscoped().Find(&users) FIND ALL RECORDS INCLUDING SOFT DELETED
 	result := db.Find(&users)
 	return users, result.Error
 }
 
+// --------------------------------------------CREATE------------------------------------------
 func CreateUser(db *gorm.DB, name string, age int) (*User, error) {
 	// Create a new User instance
 	user := User{Name: name, Age: age}
@@ -127,17 +145,50 @@ func CreateUser(db *gorm.DB, name string, age int) (*User, error) {
 
 // BeforeCreate is a GORM hook that runs before a User is created
 func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
+	// Automatically set CreatedAt field to the current time
+	u.CreatedAt = time.Now()
+
 	fmt.Println("Running BeforeCreate function.")
 	fmt.Printf("User created: Name=%s, Age=%d", u.Name, u.Age)
 
-	return nil
+	return
 }
 
 // AfterCreate is a GORM hook that runs after a User is created
 func (u *User) AfterCreate(tx *gorm.DB) (err error) {
 	// Log the details of the created user
 	fmt.Println("Running AfterCreate function.")
-	log.Printf("User created: ID=%d, Name=%s, Age=%d", u.ID, u.Name, u.Age)
+	// Log the details of the created user
+	log.Printf("User created: ID=%d, Name=%s, Age=%d, CreatedAt=%s\n",
+		u.ID, u.Name, u.Age, u.CreatedAt.Format(time.RFC3339))
+
+	return
+}
+
+// --------------------------------------------DELETE------------------------------------------
+// DeleteUser performs a soft delete on the user with the specified ID
+func DeleteUser(db *gorm.DB, id uint) error {
+	// Use GORM's Delete method to perform a soft delete
+	if err := db.Delete(&User{}, id).Error; err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
+
+	log.Printf("User with ID=%d has been soft deleted\n", id)
 
 	return nil
+}
+
+func (u *User) BeforeDelete(tx *gorm.DB) (err error) {
+	// Log the details of the user to be deleted
+	fmt.Println("Running BeforeDelete function.")
+	fmt.Printf("User to be deleted: ID=%d, Name=%s, Age=%d\n", u.ID, u.Name, u.Age)
+	return
+}
+
+func (u *User) AfterDelete(tx *gorm.DB) (err error) {
+	// Log the details of the deleted user
+	fmt.Println("Running AfterDelete function.")
+	fmt.Printf("User deleted: ID=%d, Name=%s, Age=%d\n", u.ID, u.Name, u.Age)
+
+	return
 }
