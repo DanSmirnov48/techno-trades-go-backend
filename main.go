@@ -47,6 +47,34 @@ func main() {
 		return c.JSON(users)
 	})
 
+	// POST /users - Create a new user
+	app.Post("/users", func(c *fiber.Ctx) error {
+		// Define a structure to hold the request body data
+		type UserRequest struct {
+			Name string `json:"name"`
+			Age  int    `json:"age"`
+		}
+
+		// Parse the request body into the UserRequest struct
+		var userReq UserRequest
+		if err := c.BodyParser(&userReq); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Cannot parse JSON",
+			})
+		}
+
+		// Call the CreateUser function to create a new user
+		user, err := CreateUser(db, userReq.Name, userReq.Age)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to create user",
+			})
+		}
+
+		// Return the created user as a JSON response
+		return c.JSON(user)
+	})
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "5000"
@@ -82,4 +110,34 @@ func GetUsers(db *gorm.DB) ([]User, error) {
 	var users []User
 	result := db.Find(&users)
 	return users, result.Error
+}
+
+func CreateUser(db *gorm.DB, name string, age int) (*User, error) {
+	// Create a new User instance
+	user := User{Name: name, Age: age}
+
+	// Use GORM's Create method to insert the new user into the database
+	if err := db.Create(&user).Error; err != nil {
+		return nil, fmt.Errorf("failed to create user: %w", err)
+	}
+
+	// Return the created user
+	return &user, nil
+}
+
+// BeforeCreate is a GORM hook that runs before a User is created
+func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
+	fmt.Println("Running BeforeCreate function.")
+	fmt.Printf("User created: Name=%s, Age=%d", u.Name, u.Age)
+
+	return nil
+}
+
+// AfterCreate is a GORM hook that runs after a User is created
+func (u *User) AfterCreate(tx *gorm.DB) (err error) {
+	// Log the details of the created user
+	fmt.Println("Running AfterCreate function.")
+	log.Printf("User created: ID=%d, Name=%s, Age=%d", u.ID, u.Name, u.Age)
+
+	return nil
 }
