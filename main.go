@@ -4,21 +4,16 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+
+	"github.com/DanSmirnov48/techno-trades-go-backend/models"
 )
 
-type User struct {
-	ID        uint   `gorm:"primaryKey"`
-	Name      string `gorm:"size:100"`
-	Age       int
-	CreatedAt time.Time
-	DeletedAt gorm.DeletedAt `gorm:"index"`
-}
+type User = models.User
 
 func main() {
 	if os.Getenv("ENV") != "production" {
@@ -132,7 +127,12 @@ func GetUsers(db *gorm.DB) ([]User, error) {
 // --------------------------------------------CREATE------------------------------------------
 func CreateUser(db *gorm.DB, name string, age int) (*User, error) {
 	// Create a new User instance
-	user := User{Name: name, Age: age}
+	user := User{
+		FirstName: "John",
+		LastName:  "Doe",
+		Email:     "john2.doe@test.com",
+		Password:  "securepassword",
+	}
 
 	// Use GORM's Create method to insert the new user into the database
 	if err := db.Create(&user).Error; err != nil {
@@ -141,28 +141,6 @@ func CreateUser(db *gorm.DB, name string, age int) (*User, error) {
 
 	// Return the created user
 	return &user, nil
-}
-
-// BeforeCreate is a GORM hook that runs before a User is created
-func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
-	// Automatically set CreatedAt field to the current time
-	u.CreatedAt = time.Now()
-
-	fmt.Println("Running BeforeCreate function.")
-	fmt.Printf("User created: Name=%s, Age=%d", u.Name, u.Age)
-
-	return
-}
-
-// AfterCreate is a GORM hook that runs after a User is created
-func (u *User) AfterCreate(tx *gorm.DB) (err error) {
-	// Log the details of the created user
-	fmt.Println("Running AfterCreate function.")
-	// Log the details of the created user
-	log.Printf("User created: ID=%d, Name=%s, Age=%d, CreatedAt=%s\n",
-		u.ID, u.Name, u.Age, u.CreatedAt.Format(time.RFC3339))
-
-	return
 }
 
 // --------------------------------------------DELETE------------------------------------------
@@ -176,19 +154,4 @@ func DeleteUser(db *gorm.DB, id uint) error {
 	log.Printf("User with ID=%d has been soft deleted\n", id)
 
 	return nil
-}
-
-func (u *User) BeforeDelete(tx *gorm.DB) (err error) {
-	// Log the details of the user to be deleted
-	fmt.Println("Running BeforeDelete function.")
-	fmt.Printf("User to be deleted: ID=%d, Name=%s, Age=%d\n", u.ID, u.Name, u.Age)
-	return
-}
-
-func (u *User) AfterDelete(tx *gorm.DB) (err error) {
-	// Log the details of the deleted user
-	fmt.Println("Running AfterDelete function.")
-	fmt.Printf("User deleted: ID=%d, Name=%s, Age=%d\n", u.ID, u.Name, u.Age)
-
-	return
 }

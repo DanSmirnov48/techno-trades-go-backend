@@ -54,3 +54,17 @@ func (u *User) AfterCreate(tx *gorm.DB) (err error) {
 
 	return
 }
+
+func (u *User) BeforeDelete(tx *gorm.DB) (err error) {
+	// Log the details of the user to be deleted
+	fmt.Println("Running BeforeDelete function.")
+
+	return
+}
+
+func (u *User) AfterDelete(tx *gorm.DB) (err error) {
+	// Log the details of the deleted user
+	fmt.Println("Running AfterDelete function.")
+
+	return
+}
