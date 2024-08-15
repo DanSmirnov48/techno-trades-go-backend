@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -36,11 +37,24 @@ type User struct {
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
+// ComparePassword compares the hashed password with a plain password
+func (u *User) ComparePassword(plainPassword string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(plainPassword))
+	return err == nil
+}
+
 // BeforeCreate is a GORM hook that runs before a User is created
 func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
 	u.ID = uuid.New()
 	u.CreatedAt = time.Now()
 	u.Role = UserRole
+
+	// Hash the password before storing it
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	u.Password = string(hashedPassword)
 
 	fmt.Println("Running BeforeCreate function.")
 
