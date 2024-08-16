@@ -68,3 +68,40 @@ func DeleteUser(c *fiber.Ctx) error {
 	// Return a success message
 	return c.SendString("User successfully deleted")
 }
+
+// LoginUser handles the login logic
+func LoginUser(c *fiber.Ctx) error {
+	type LoginInput struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	var input LoginInput
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+
+	// 1) Check if email and password exist
+	if input.Email == "" || input.Password == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Please provide email and password"})
+	}
+
+	var user models.User
+
+	// 2) Check if user exists and retrieve their password
+	if err := database.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Incorrect email or password"})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error checking user credentials"})
+	}
+
+	// 3) Compare the provided password with the stored password using the ComparePassword method
+	if !user.ComparePassword(input.Password) {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Incorrect email or password"})
+	}
+
+	// 4) If everything ok, send user back (without the password)
+	user.Password = "" // Don't send the password back
+	return c.Status(fiber.StatusOK).JSON(user)
+}
