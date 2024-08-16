@@ -14,4 +14,5 @@ func SetupRoutes(app *fiber.App) {
 	userRouter.Delete("/:id", controllers.DeleteUser)
 
 	userRouter.Post("/login", controllers.LoginUser)
+	userRouter.Post("/logout", controllers.LogoutUser)
 }

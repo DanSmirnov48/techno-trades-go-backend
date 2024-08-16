@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/DanSmirnov48/techno-trades-go-backend/database"
 	"github.com/DanSmirnov48/techno-trades-go-backend/models"
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt/v5"
 	"gorm.io/gorm"
 )
 
@@ -69,6 +72,25 @@ func DeleteUser(c *fiber.Ctx) error {
 	return c.SendString("User successfully deleted")
 }
 
+// CreateToken generates a JWT token for the given user ID
+func CreateToken(userID string, secret string, expiresIn string) (string, error) {
+	// Parse the expiration duration
+	duration, err := time.ParseDuration(expiresIn)
+	if err != nil {
+		return "", err
+	}
+
+	// Define claims
+	claims := jwt.MapClaims{
+		"sub": userID,
+		"exp": time.Now().Add(duration).Unix(),
+	}
+
+	// Create token
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(secret))
+}
+
 // LoginUser handles the login logic
 func LoginUser(c *fiber.Ctx) error {
 	type LoginInput struct {
@@ -101,7 +123,49 @@ func LoginUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Incorrect email or password"})
 	}
 
-	// 4) If everything ok, send user back (without the password)
+	// 4) Create a JWT token
+	accessToken, err := CreateToken(user.ID.String(), "your_jwt_secret", "24h")
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error creating token"})
+	}
+
+	// 5) Set the token in a cookie
+	isSecure := false
+	if proto, ok := c.GetReqHeaders()["X-Forwarded-Proto"]; ok {
+		for _, p := range proto {
+			if strings.ToLower(p) == "https" {
+				isSecure = true
+				break
+			}
+		}
+	}
+
+	c.Cookie(&fiber.Cookie{
+		Name:     "accessToken",
+		Value:    accessToken,
+		Expires:  time.Now().Add(24 * time.Hour),
+		HTTPOnly: true,
+		Secure:   isSecure,
+		SameSite: "strict",
+	})
+
+	// 6) Remove password from output
 	user.Password = "" // Don't send the password back
-	return c.Status(fiber.StatusOK).JSON(user)
+
+	// 7) Send response
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": "success",
+		"data": fiber.Map{
+			"user": user,
+		},
+	})
+}
+
+// LogoutUser handles the user logout
+func LogoutUser(c *fiber.Ctx) error {
+	// Clear the access token cookie
+	c.ClearCookie("accessToken")
+
+	// Send response
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success"})
 }
