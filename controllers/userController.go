@@ -82,8 +82,8 @@ func CreateToken(userID string, secret string, expiresIn string) (string, error)
 
 	// Define claims
 	claims := jwt.MapClaims{
-		"sub": userID,
-		"exp": time.Now().Add(duration).Unix(),
+		"user_id": userID,
+		"exp":     time.Now().Add(duration).Unix(),
 	}
 
 	// Create token
@@ -168,4 +168,82 @@ func LogoutUser(c *fiber.Ctx) error {
 
 	// Send response
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success"})
+}
+
+// ReadCookie logs the value of a specific cookie
+func ReadCookie(c *fiber.Ctx) error {
+	// Retrieve the cookie value by name (e.g., "accessToken")
+	cookieValue := c.Cookies("accessToken")
+
+	// Log the cookie value
+	if cookieValue == "" {
+		fmt.Println("No accessToken cookie found")
+	} else {
+		fmt.Printf("accessToken cookie value: %s\n", cookieValue)
+	}
+
+	// Send a response back to the client
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":      "success",
+		"cookieValue": cookieValue,
+	})
+}
+
+// Secret key used to sign the JWTs
+var jwtSecret = []byte("your_jwt_secret")
+
+// DecodeJWT verifies the JWT token and extracts the user ID
+func DecodeJWT(c *fiber.Ctx) error {
+	// Get the JWT from the cookies
+	tokenString := c.Cookies("accessToken")
+
+	if tokenString == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Missing or invalid JWT",
+		})
+	}
+
+	// Parse the JWT token
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Verify the signing method
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return jwtSecret, nil
+	})
+
+	// Handle errors during token parsing
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid token",
+		})
+	}
+
+	// Check if the token is valid
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		// Extract the user ID from the token
+		userID := claims["user_id"].(string)
+		expiration := int64(claims["exp"].(float64))
+
+		// Check if the token is expired
+		if time.Now().Unix() > expiration {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"status":  "error",
+				"message": "Token expired",
+			})
+		}
+
+		// Return the user ID in the response
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"status": "success",
+			"user":   userID,
+		})
+	}
+
+	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+		"status":  "error",
+		"message": "Invalid token",
+	})
 }

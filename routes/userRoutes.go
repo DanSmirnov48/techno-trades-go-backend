@@ -15,4 +15,6 @@ func SetupRoutes(app *fiber.App) {
 
 	userRouter.Post("/login", controllers.LoginUser)
 	userRouter.Post("/logout", controllers.LogoutUser)
+
+	userRouter.Get("/me", controllers.DecodeJWT)
 }
