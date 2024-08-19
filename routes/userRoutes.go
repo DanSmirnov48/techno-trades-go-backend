@@ -17,4 +17,5 @@ func SetupRoutes(app *fiber.App) {
 	userRouter.Post("/logout", controllers.LogoutUser)
 
 	userRouter.Get("/me", controllers.DecodeJWT)
+	userRouter.Get("/protected", controllers.Protect(), controllers.ProtectedEndpoint)
 }

@@ -21,6 +21,17 @@ func GetUsers(c *fiber.Ctx) error {
 	return c.JSON(users)
 }
 
+func GetUserByID(db *gorm.DB, userID string) (*models.User, *fiber.Error) {
+	var user models.User
+	if err := db.First(&user, "id = ?", userID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fiber.NewError(fiber.StatusNotFound, "User not found")
+		}
+		return nil, fiber.NewError(fiber.StatusInternalServerError, "Database error")
+	}
+	return &user, nil
+}
+
 // CreateUser creates a new user
 func CreateUser(c *fiber.Ctx) error {
 	// Parse the request body into the User struct
@@ -49,16 +60,9 @@ func DeleteUser(c *fiber.Ctx) error {
 	// Get the ID from the request URL
 	id := c.Params("id")
 
-	// Find the user by ID
-	var user models.User
-	if err := database.DB.First(&user, "id = ?", id).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			// If no user is found, return a 404 response
-			return c.Status(fiber.StatusNotFound).SendString("User not found")
-		}
-		// Log any other errors and return a 500 response
-		log.Printf("Error finding user: %v", err)
-		return c.Status(fiber.StatusInternalServerError).SendString("Could not find user")
+	user, err := GetUserByID(database.DB, id)
+	if err != nil {
+		return err
 	}
 
 	// Delete the user (soft delete)
@@ -155,6 +159,7 @@ func LoginUser(c *fiber.Ctx) error {
 	// 7) Send response
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": "success",
+		"token":  accessToken,
 		"data": fiber.Map{
 			"user": user,
 		},
@@ -235,15 +240,79 @@ func DecodeJWT(c *fiber.Ctx) error {
 			})
 		}
 
+		// Call the GetUserByID function
+		user, err := GetUserByID(database.DB, userID)
+		if err != nil {
+			// If there's an error, use the Fiber error response
+			return err
+		}
+
+		// Attach the user object to the context
+		c.Locals("user", user)
+
 		// Return the user ID in the response
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
 			"status": "success",
-			"user":   userID,
+			"data": fiber.Map{
+				"user": user,
+			},
 		})
 	}
 
 	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 		"status":  "error",
 		"message": "Invalid token",
+	})
+}
+
+// Middleware to attach the user object to the context
+func Protect() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		// Example: Extracting the token from the Authorization header
+		authHeader := c.Get("Authorization")
+
+		if authHeader == "" {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "No authorization header provided"})
+		}
+
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+
+		claims := jwt.MapClaims{}
+		_, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
+			// Use a proper key for your JWT
+			return []byte("your_jwt_secret"), nil
+		})
+
+		if err != nil || claims["user_id"] == nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid or expired token"})
+		}
+
+		// Extract user information from claims
+		userID := claims["user_id"].(string)
+
+		user, err := GetUserByID(database.DB, userID)
+
+		// Attach the user object to the context
+		c.Locals("user", user)
+
+		// Proceed to the next handler
+		return c.Next()
+	}
+}
+
+// Example handler to access the user object
+func ProtectedEndpoint(c *fiber.Ctx) error {
+	user, ok := c.Locals("user").(*models.User)
+
+	if !ok {
+		// If the user does not exist in Locals, set it to nil
+		user = nil
+	}
+
+	// Log the request body
+	fmt.Print(user)
+
+	return c.JSON(fiber.Map{
+		"user": user,
 	})
 }
