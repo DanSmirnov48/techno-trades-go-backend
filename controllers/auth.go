@@ -2,8 +2,7 @@ package controllers
 
 import (
 	"fmt"
-	"log"
-	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -13,87 +12,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"gorm.io/gorm"
 )
-
-// GetUsers retrieves all users
-func GetUsers(c *fiber.Ctx) error {
-	var users []models.User
-	database.DB.Find(&users)
-	return c.JSON(users)
-}
-
-func GetUserByID(db *gorm.DB, userID string) (*models.User, *fiber.Error) {
-	var user models.User
-	if err := db.First(&user, "id = ?", userID).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, fiber.NewError(fiber.StatusNotFound, "User not found")
-		}
-		return nil, fiber.NewError(fiber.StatusInternalServerError, "Database error")
-	}
-	return &user, nil
-}
-
-// CreateUser creates a new user
-func CreateUser(c *fiber.Ctx) error {
-	// Parse the request body into the User struct
-	user := new(models.User)
-	if err := c.BodyParser(user); err != nil {
-		// Log the error and return a bad request response
-		log.Printf("Error parsing request body: %v", err)
-		return c.Status(http.StatusBadRequest).SendString(err.Error())
-	}
-
-	// Log the request body
-	fmt.Printf("Received user: %+v\n", user)
-
-	// Create the user in the database
-	if err := database.DB.Create(&user).Error; err != nil {
-		// Log the error and return an internal server error response
-		log.Printf("Error creating user: %v", err)
-		return c.Status(fiber.StatusInternalServerError).SendString("Could not create user")
-	}
-
-	return c.Status(201).JSON(user)
-}
-
-// DeleteUser deletes a user by ID
-func DeleteUser(c *fiber.Ctx) error {
-	// Get the ID from the request URL
-	id := c.Params("id")
-
-	user, err := GetUserByID(database.DB, id)
-	if err != nil {
-		return err
-	}
-
-	// Delete the user (soft delete)
-	if err := database.DB.Delete(&user).Error; err != nil {
-		// Log the error and return a 500 response
-		log.Printf("Error deleting user: %v", err)
-		return c.Status(fiber.StatusInternalServerError).SendString("Could not delete user")
-	}
-
-	// Return a success message
-	return c.SendString("User successfully deleted")
-}
-
-// CreateToken generates a JWT token for the given user ID
-func CreateToken(userID string, secret string, expiresIn string) (string, error) {
-	// Parse the expiration duration
-	duration, err := time.ParseDuration(expiresIn)
-	if err != nil {
-		return "", err
-	}
-
-	// Define claims
-	claims := jwt.MapClaims{
-		"user_id": userID,
-		"exp":     time.Now().Add(duration).Unix(),
-	}
-
-	// Create token
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(secret))
-}
 
 // LoginUser handles the login logic
 func LoginUser(c *fiber.Ctx) error {
@@ -128,7 +46,7 @@ func LoginUser(c *fiber.Ctx) error {
 	}
 
 	// 4) Create a JWT token
-	accessToken, err := CreateToken(user.ID.String(), "your_jwt_secret", "24h")
+	accessToken, err := CreateToken(user.ID.String(), "24h")
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error creating token"})
 	}
@@ -175,28 +93,6 @@ func LogoutUser(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success"})
 }
 
-// ReadCookie logs the value of a specific cookie
-func ReadCookie(c *fiber.Ctx) error {
-	// Retrieve the cookie value by name (e.g., "accessToken")
-	cookieValue := c.Cookies("accessToken")
-
-	// Log the cookie value
-	if cookieValue == "" {
-		fmt.Println("No accessToken cookie found")
-	} else {
-		fmt.Printf("accessToken cookie value: %s\n", cookieValue)
-	}
-
-	// Send a response back to the client
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":      "success",
-		"cookieValue": cookieValue,
-	})
-}
-
-// Secret key used to sign the JWTs
-var jwtSecret = []byte("your_jwt_secret")
-
 // DecodeJWT verifies the JWT token and extracts the user ID
 func DecodeJWT(c *fiber.Ctx) error {
 	// Get the JWT from the cookies
@@ -215,7 +111,7 @@ func DecodeJWT(c *fiber.Ctx) error {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return jwtSecret, nil
+		return []byte(os.Getenv("JWT_SECRET")), nil
 	})
 
 	// Handle errors during token parsing
@@ -280,7 +176,7 @@ func Protect() fiber.Handler {
 		claims := jwt.MapClaims{}
 		_, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
 			// Use a proper key for your JWT
-			return []byte("your_jwt_secret"), nil
+			return []byte(os.Getenv("JWT_SECRET")), nil
 		})
 
 		if err != nil || claims["user_id"] == nil {
