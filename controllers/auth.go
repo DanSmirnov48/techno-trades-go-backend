@@ -8,26 +8,38 @@ import (
 
 	"github.com/DanSmirnov48/techno-trades-go-backend/database"
 	"github.com/DanSmirnov48/techno-trades-go-backend/models"
+	"github.com/DanSmirnov48/techno-trades-go-backend/utils/validate"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"gorm.io/gorm"
 )
 
+// CreateToken generates a JWT token for the given user ID
+func CreateToken(userID string, expiresIn string) (string, error) {
+	// Parse the expiration duration
+	duration, err := time.ParseDuration(expiresIn)
+	if err != nil {
+		return "", err
+	}
+
+	// Define claims
+	claims := jwt.MapClaims{
+		"user_id": userID,
+		"exp":     time.Now().Add(duration).Unix(),
+	}
+
+	// Create token
+	secret := os.Getenv("JWT_SECRET")
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(secret))
+}
+
 // LoginUser handles the login logic
 func LoginUser(c *fiber.Ctx) error {
-	type LoginInput struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
-
-	var input LoginInput
-	if err := c.BodyParser(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
-	}
-
-	// 1) Check if email and password exist
-	if input.Email == "" || input.Password == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Please provide email and password"})
+	// 1) Parse and validate the login input.
+	input, err := validate.ParseLoginInput(c)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	var user models.User
@@ -164,7 +176,6 @@ func DecodeJWT(c *fiber.Ctx) error {
 // Middleware to attach the user object to the context
 func Protect() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		// Example: Extracting the token from the Authorization header
 		authHeader := c.Get("Authorization")
 
 		if authHeader == "" {
@@ -175,12 +186,14 @@ func Protect() fiber.Handler {
 
 		claims := jwt.MapClaims{}
 		_, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
-			// Use a proper key for your JWT
 			return []byte(os.Getenv("JWT_SECRET")), nil
 		})
 
 		if err != nil || claims["user_id"] == nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid or expired token"})
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"status":  "error",
+				"message": "Invalid or expired token",
+			})
 		}
 
 		// Extract user information from claims

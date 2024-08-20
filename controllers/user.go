@@ -4,13 +4,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
-	"time"
 
 	"github.com/DanSmirnov48/techno-trades-go-backend/database"
 	"github.com/DanSmirnov48/techno-trades-go-backend/models"
 	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt/v5"
 	"gorm.io/gorm"
 )
 
@@ -74,24 +71,4 @@ func DeleteUser(c *fiber.Ctx) error {
 
 	// Return a success message
 	return c.SendString("User successfully deleted")
-}
-
-// CreateToken generates a JWT token for the given user ID
-func CreateToken(userID string, expiresIn string) (string, error) {
-	// Parse the expiration duration
-	duration, err := time.ParseDuration(expiresIn)
-	if err != nil {
-		return "", err
-	}
-
-	// Define claims
-	claims := jwt.MapClaims{
-		"user_id": userID,
-		"exp":     time.Now().Add(duration).Unix(),
-	}
-
-	// Create token
-	secret := os.Getenv("JWT_SECRET")
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(secret))
 }
