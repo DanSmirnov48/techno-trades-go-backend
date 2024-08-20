@@ -34,6 +34,64 @@ func CreateToken(userID string, expiresIn string) (string, error) {
 	return token.SignedString([]byte(secret))
 }
 
+// ParseJWT parses the JWT token from a string and returns the token object.
+func ParseJWT(tokenString string, secret string) (*jwt.Token, error) {
+	// Parse the JWT token
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Verify the signing method
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(secret), nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("invalid token: %w", err)
+	}
+
+	return token, nil
+}
+
+// ValidateJWTClaims validates the JWT claims and checks for expiration.
+func ValidateJWTClaims(token *jwt.Token) (string, error) {
+	// Check if the token is valid
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		return "", fmt.Errorf("invalid token claims")
+	}
+
+	// Extract the user ID from the token
+	userID, ok := claims["user_id"].(string) // Assuming "sub" is the field for user ID
+	if !ok {
+		return "", fmt.Errorf("invalid token: missing user ID")
+	}
+
+	// Check if the token is expired
+	expiration, ok := claims["exp"].(float64)
+	if !ok || time.Now().Unix() > int64(expiration) {
+		return "", fmt.Errorf("token expired")
+	}
+
+	return userID, nil
+}
+
+// ExtractToken extracts the token from the Authorization header.
+func GetAuthorizationHeader(c *fiber.Ctx) (string, error) {
+	authHeader := c.Get("Authorization")
+
+	if authHeader == "" {
+		return "", fiber.NewError(fiber.StatusUnauthorized, "No authorization header provided")
+	}
+
+	// Trim the "Bearer " prefix
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	if tokenString == "" {
+		return "", fiber.NewError(fiber.StatusUnauthorized, "Authorization header format must be Bearer {token}")
+	}
+
+	return tokenString, nil
+}
+
 // LoginUser handles the login logic
 func LoginUser(c *fiber.Ctx) error {
 	// 1) Parse and validate the login input.
@@ -105,7 +163,7 @@ func LogoutUser(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success"})
 }
 
-// DecodeJWT verifies the JWT token and extracts the user ID
+// DecodeJWT verifies the JWT token, extracts the user ID, and retrieves the user from the database.
 func DecodeJWT(c *fiber.Ctx) error {
 	// Get the JWT from the cookies
 	tokenString := c.Cookies("accessToken")
@@ -118,86 +176,70 @@ func DecodeJWT(c *fiber.Ctx) error {
 	}
 
 	// Parse the JWT token
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		// Verify the signing method
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(os.Getenv("JWT_SECRET")), nil
-	})
-
-	// Handle errors during token parsing
+	secret := os.Getenv("JWT_SECRET")
+	token, err := ParseJWT(tokenString, secret)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"status":  "error",
-			"message": "Invalid token",
+			"message": err.Error(),
 		})
 	}
 
-	// Check if the token is valid
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		// Extract the user ID from the token
-		userID := claims["user_id"].(string)
-		expiration := int64(claims["exp"].(float64))
-
-		// Check if the token is expired
-		if time.Now().Unix() > expiration {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"status":  "error",
-				"message": "Token expired",
-			})
-		}
-
-		// Call the GetUserByID function
-		user, err := GetUserByID(database.DB, userID)
-		if err != nil {
-			// If there's an error, use the Fiber error response
-			return err
-		}
-
-		// Attach the user object to the context
-		c.Locals("user", user)
-
-		// Return the user ID in the response
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"status": "success",
-			"data": fiber.Map{
-				"user": user,
-			},
+	// Validate the token claims
+	userID, err := ValidateJWTClaims(token)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"status":  "error",
+			"message": err.Error(),
 		})
 	}
 
-	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-		"status":  "error",
-		"message": "Invalid token",
+	// Call the GetUserByID function
+	user, err := GetUserByID(database.DB, userID)
+	if user == nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	// Attach the user object to the context
+	c.Locals("user", user)
+
+	// Return the user object in the response
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": "success",
+		"data": fiber.Map{
+			"user": user,
+		},
 	})
 }
 
 // Middleware to attach the user object to the context
 func Protect() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		authHeader := c.Get("Authorization")
-
-		if authHeader == "" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "No authorization header provided"})
+		// Extract the Authorization token from Header
+		tokenString, err := GetAuthorizationHeader(c)
+		if err != nil {
+			fiberErr := err.(*fiber.Error)
+			return c.Status(fiberErr.Code).JSON(fiber.Map{"error": fiberErr.Message})
 		}
 
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-
-		claims := jwt.MapClaims{}
-		_, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
-			return []byte(os.Getenv("JWT_SECRET")), nil
-		})
-
-		if err != nil || claims["user_id"] == nil {
+		// Parse the JWT token
+		secret := os.Getenv("JWT_SECRET")
+		token, err := ParseJWT(tokenString, secret)
+		if err != nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"status":  "error",
 				"message": "Invalid or expired token",
 			})
 		}
 
-		// Extract user information from claims
-		userID := claims["user_id"].(string)
+		// Validate the JWT claims
+		userID, err := ValidateJWTClaims(token)
+		if err != nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"status":  "error",
+				"message": err.Error(),
+			})
+		}
 
 		user, err := GetUserByID(database.DB, userID)
 
