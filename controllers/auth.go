@@ -8,89 +8,11 @@ import (
 
 	"github.com/DanSmirnov48/techno-trades-go-backend/database"
 	"github.com/DanSmirnov48/techno-trades-go-backend/models"
+	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils/validate"
 	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt/v5"
 	"gorm.io/gorm"
 )
-
-// CreateToken generates a JWT token for the given user ID
-func CreateToken(userID string, expiresIn string) (string, error) {
-	// Parse the expiration duration
-	duration, err := time.ParseDuration(expiresIn)
-	if err != nil {
-		return "", err
-	}
-
-	// Define claims
-	claims := jwt.MapClaims{
-		"user_id": userID,
-		"exp":     time.Now().Add(duration).Unix(),
-	}
-
-	// Create token
-	secret := os.Getenv("JWT_SECRET")
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(secret))
-}
-
-// ParseJWT parses the JWT token from a string and returns the token object.
-func ParseJWT(tokenString string, secret string) (*jwt.Token, error) {
-	// Parse the JWT token
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		// Verify the signing method
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(secret), nil
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("invalid token: %w", err)
-	}
-
-	return token, nil
-}
-
-// ValidateJWTClaims validates the JWT claims and checks for expiration.
-func ValidateJWTClaims(token *jwt.Token) (string, error) {
-	// Check if the token is valid
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok || !token.Valid {
-		return "", fmt.Errorf("invalid token claims")
-	}
-
-	// Extract the user ID from the token
-	userID, ok := claims["user_id"].(string) // Assuming "sub" is the field for user ID
-	if !ok {
-		return "", fmt.Errorf("invalid token: missing user ID")
-	}
-
-	// Check if the token is expired
-	expiration, ok := claims["exp"].(float64)
-	if !ok || time.Now().Unix() > int64(expiration) {
-		return "", fmt.Errorf("token expired")
-	}
-
-	return userID, nil
-}
-
-// ExtractToken extracts the token from the Authorization header.
-func GetAuthorizationHeader(c *fiber.Ctx) (string, error) {
-	authHeader := c.Get("Authorization")
-
-	if authHeader == "" {
-		return "", fiber.NewError(fiber.StatusUnauthorized, "No authorization header provided")
-	}
-
-	// Trim the "Bearer " prefix
-	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-	if tokenString == "" {
-		return "", fiber.NewError(fiber.StatusUnauthorized, "Authorization header format must be Bearer {token}")
-	}
-
-	return tokenString, nil
-}
 
 // LoginUser handles the login logic
 func LoginUser(c *fiber.Ctx) error {
@@ -116,7 +38,7 @@ func LoginUser(c *fiber.Ctx) error {
 	}
 
 	// 4) Create a JWT token
-	accessToken, err := CreateToken(user.ID.String(), "24h")
+	accessToken, err := utils.CreateToken(user.ID.String(), "24h")
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error creating token"})
 	}
@@ -177,7 +99,7 @@ func DecodeJWT(c *fiber.Ctx) error {
 
 	// Parse the JWT token
 	secret := os.Getenv("JWT_SECRET")
-	token, err := ParseJWT(tokenString, secret)
+	token, err := utils.ParseJWT(tokenString, secret)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"status":  "error",
@@ -186,7 +108,7 @@ func DecodeJWT(c *fiber.Ctx) error {
 	}
 
 	// Validate the token claims
-	userID, err := ValidateJWTClaims(token)
+	userID, err := utils.ValidateJWTClaims(token)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"status":  "error",
@@ -216,7 +138,7 @@ func DecodeJWT(c *fiber.Ctx) error {
 func Protect() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Extract the Authorization token from Header
-		tokenString, err := GetAuthorizationHeader(c)
+		tokenString, err := utils.GetAuthorizationHeader(c)
 		if err != nil {
 			fiberErr := err.(*fiber.Error)
 			return c.Status(fiberErr.Code).JSON(fiber.Map{"error": fiberErr.Message})
@@ -224,7 +146,7 @@ func Protect() fiber.Handler {
 
 		// Parse the JWT token
 		secret := os.Getenv("JWT_SECRET")
-		token, err := ParseJWT(tokenString, secret)
+		token, err := utils.ParseJWT(tokenString, secret)
 		if err != nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"status":  "error",
@@ -233,7 +155,7 @@ func Protect() fiber.Handler {
 		}
 
 		// Validate the JWT claims
-		userID, err := ValidateJWTClaims(token)
+		userID, err := utils.ValidateJWTClaims(token)
 		if err != nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"status":  "error",
