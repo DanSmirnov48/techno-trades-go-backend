@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -173,17 +172,62 @@ func Protect() fiber.Handler {
 	}
 }
 
+// RestrictTo checks if the authenticated user has one of the required roles
+func RestrictTo(roles ...models.Role) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		// Retrieve the user object from the context (set by the Protect middleware)
+		user, ok := c.Locals("user").(*models.User)
+		if !ok || user == nil {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"status":  "error",
+				"message": "User information is missing. You do not have permission to perform this action.",
+			})
+		}
+
+		// Check if the user's role is in the allowed roles
+		hasPermission := false
+		for _, role := range roles {
+			if user.Role == role {
+				hasPermission = true
+				break
+			}
+		}
+
+		if !hasPermission {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"status":  "error",
+				"message": "You do not have permission to perform this action.",
+			})
+		}
+
+		// User has the required role, proceed to the next handler
+		return c.Next()
+	}
+}
+
 // Example handler to access the user object
 func ProtectedEndpoint(c *fiber.Ctx) error {
 	user, ok := c.Locals("user").(*models.User)
-
-	if !ok {
-		// If the user does not exist in Locals, set it to nil
-		user = nil
+	if !ok || user == nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "error",
+			"message": "User information is missing. You do not have permission to perform this action.",
+		})
 	}
 
-	// Log the request body
-	fmt.Print(user)
+	return c.JSON(fiber.Map{
+		"user": user,
+	})
+}
+
+func AdminRestictedRoute(c *fiber.Ctx) error {
+	user, ok := c.Locals("user").(*models.User)
+	if !ok || user == nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "error",
+			"message": "User information is missing. You do not have permission to perform this action.",
+		})
+	}
 
 	return c.JSON(fiber.Map{
 		"user": user,
