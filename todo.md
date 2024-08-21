@@ -18,3 +18,4 @@
 - ForgotPassword :x:
 - ResetPassword :x:
 - Update Password :x:
+- Route Rate Limiter :heavy_check_mark:

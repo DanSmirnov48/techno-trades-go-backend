@@ -5,9 +5,11 @@ import (
 	"os"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/helmet"
 	"github.com/joho/godotenv"
 
 	"github.com/DanSmirnov48/techno-trades-go-backend/database"
+	"github.com/DanSmirnov48/techno-trades-go-backend/middlewares"
 	"github.com/DanSmirnov48/techno-trades-go-backend/routes"
 )
 
@@ -24,6 +26,13 @@ func main() {
 	database.ConnectDB()
 
 	app := fiber.New()
+
+	app.Use(helmet.New())
+	app.Use(middlewares.CorsHandler())
+
+	app.Options("*", func(c *fiber.Ctx) error {
+		return c.SendStatus(204)
+	})
 
 	port := os.Getenv("PORT")
 	if port == "" {
