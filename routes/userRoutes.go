@@ -2,6 +2,7 @@ package routes
 
 import (
 	"github.com/DanSmirnov48/techno-trades-go-backend/controllers"
+	"github.com/DanSmirnov48/techno-trades-go-backend/middlewares"
 	"github.com/DanSmirnov48/techno-trades-go-backend/models"
 
 	"github.com/gofiber/fiber/v2"
@@ -18,10 +19,10 @@ func SetupRoutes(app *fiber.App) {
 	userRouter.Post("/logout", controllers.LogoutUser)
 
 	userRouter.Get("/me", controllers.DecodeJWT)
-	userRouter.Get("/protected", controllers.Protect(), controllers.ProtectedEndpoint)
+	userRouter.Get("/protected", middlewares.Protect(), controllers.ProtectedEndpoint)
 
 	userRouter.Get("/admin",
-		controllers.Protect(),
-		controllers.RestrictTo(models.AdminRole),
+		middlewares.Protect(),
+		middlewares.RestrictTo(models.AdminRole),
 		controllers.AdminRestictedRoute)
 }
