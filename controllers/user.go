@@ -1,12 +1,12 @@
 package controllers
 
 import (
-	"fmt"
 	"log"
-	"net/http"
+	"strings"
 
 	"github.com/DanSmirnov48/techno-trades-go-backend/database"
 	"github.com/DanSmirnov48/techno-trades-go-backend/models"
+	"github.com/DanSmirnov48/techno-trades-go-backend/utils/validate"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
@@ -31,25 +31,32 @@ func GetUserByID(db *gorm.DB, userID string) (*models.User, *fiber.Error) {
 
 // CreateUser creates a new user
 func CreateUser(c *fiber.Ctx) error {
-	// Parse the request body into the User struct
-	user := new(models.User)
-	if err := c.BodyParser(user); err != nil {
-		// Log the error and return a bad request response
-		log.Printf("Error parsing request body: %v", err)
-		return c.Status(http.StatusBadRequest).SendString(err.Error())
+	// Parse and validate the input
+	input, err := validate.ParseCreateUserInput(c)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	// Log the request body
-	fmt.Printf("Received user: %+v\n", user)
-
 	// Create the user in the database
+	user := models.User{
+		FirstName: input.FirstName,
+		LastName:  input.LastName,
+		Email:     input.Email,
+		Password:  input.Password,
+	}
+
 	if err := database.DB.Create(&user).Error; err != nil {
-		// Log the error and return an internal server error response
+		// Check for unique constraint violation
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "Email is not available"})
+		}
+
+		// Log the error and return a generic internal server error response
 		log.Printf("Error creating user: %v", err)
 		return c.Status(fiber.StatusInternalServerError).SendString("Could not create user")
 	}
 
-	return c.Status(201).JSON(user)
+	return c.Status(fiber.StatusCreated).JSON(user)
 }
 
 // DeleteUser deletes a user by ID
