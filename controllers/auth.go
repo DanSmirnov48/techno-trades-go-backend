@@ -150,7 +150,7 @@ func ProtectedEndpoint(c *fiber.Ctx) error {
 
 func AdminRestictedRoute(c *fiber.Ctx) error {
 	user, ok := c.Locals("user").(*models.User)
-	if !ok || user == nil {
+	if !ok || user == nil || user.Role != models.AdminRole {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "error",
 			"message": "User information is missing. You do not have permission to perform this action.",
@@ -159,5 +159,55 @@ func AdminRestictedRoute(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"user": user,
+	})
+}
+
+// UpdateUserPassword allows authenticated users to update their password.
+func UpdateUserPassword(c *fiber.Ctx) error {
+	// UpdatePasswordInput holds the data for updating the user's password.
+	type UpdatePasswordInput struct {
+		CurrentPassword string `json:"currentPassword" validate:"required"`
+		NewPassword     string `json:"newPassword" validate:"required,min=8"`
+	}
+
+	// Parse the request body into the UpdatePasswordInput struct
+	var input UpdatePasswordInput
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid request body",
+		})
+	}
+
+	// Get the authenticated user from the context
+	user, ok := c.Locals("user").(*models.User)
+	if !ok || user == nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "error",
+			"message": "User information is missing. You do not have permission to perform this action.",
+		})
+	}
+
+	// Compare the provided password with the stored password using the ComparePassword method
+	if !user.ComparePassword(input.CurrentPassword) {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Current password is incorrect",
+		})
+	}
+
+	// Update the user's password (it will be hashed in the BeforeSave hook)
+	user.Password = input.NewPassword
+	if err := database.DB.Save(user).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to update password",
+		})
+	}
+
+	// Return a success response
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "Password updated successfully",
 	})
 }

@@ -25,4 +25,6 @@ func SetupRoutes(app *fiber.App) {
 		middlewares.Protect(),
 		middlewares.RestrictTo(models.AdminRole),
 		controllers.AdminRestictedRoute)
+
+	userRouter.Patch("/update-my-password", middlewares.Protect(), controllers.UpdateUserPassword)
 }
