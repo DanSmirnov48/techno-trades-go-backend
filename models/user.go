@@ -83,25 +83,24 @@ func (u *User) AfterDelete(tx *gorm.DB) (err error) {
 	return
 }
 
-// BeforeSave is a GORM hook that runs before saving the User model
-func (u *User) BeforeSave(tx *gorm.DB) (err error) {
+// BeforeUpdate is a GORM hook that runs before saving the User model
+func (u *User) BeforeUpdate(tx *gorm.DB) (err error) {
+	fmt.Println("Running BeforeUpdate function.")
 
-	fmt.Println("Running BeforeSave function.")
-	// If the password field is not empty, hash it
-	if u.Password != "" {
+	if tx.Statement.Changed("Password") {
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
 		if err != nil {
 			return err
 		}
-		u.Password = string(hashedPassword)
+		tx.Statement.SetColumn("Password", string(hashedPassword))
 	}
 	return nil
 }
 
-// BeforeSave is a GORM hook that runs before saving the User model
-func (u *User) AfterSave(tx *gorm.DB) (err error) {
+// AfterUpdate is a GORM hook that runs before saving the User model
+func (u *User) AfterUpdate(tx *gorm.DB) (err error) {
 
-	fmt.Println("Running AfterSave function.")
+	fmt.Println("Running AfterUpdate function.")
 
 	return nil
 }

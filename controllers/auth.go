@@ -197,8 +197,9 @@ func UpdateUserPassword(c *fiber.Ctx) error {
 	}
 
 	// Update the user's password (it will be hashed in the BeforeSave hook)
-	user.Password = input.NewPassword
-	if err := database.DB.Save(user).Error; err != nil {
+	if err := database.DB.Model(&user).Updates(map[string]interface{}{
+		"Password": input.NewPassword,
+	}).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  "error",
 			"message": "Failed to update password",
