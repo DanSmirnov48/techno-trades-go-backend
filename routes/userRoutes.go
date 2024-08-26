@@ -27,4 +27,6 @@ func SetupRoutes(app *fiber.App) {
 		controllers.AdminRestictedRoute)
 
 	userRouter.Patch("/update-my-password", middlewares.Protect(), controllers.UpdateUserPassword)
+
+	userRouter.Post("/forgot-password", middlewares.RateLimiter(), controllers.ForgotPassword)
 }

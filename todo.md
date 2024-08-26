@@ -15,7 +15,8 @@
 - User SignOut :heavy_check_mark:
 - Protect middleware :heavy_check_mark:
 - Role restricted Route :heavy_check_mark:
-- ForgotPassword :x:
+- ForgotPassword :heavy_check_mark:
+	- Email token to user :x:
 - ResetPassword :x:
-- Update Password :x:
+- Update Password :heavy_check_mark:
 - Route Rate Limiter :heavy_check_mark:

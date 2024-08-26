@@ -1,7 +1,10 @@
 package models
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,18 +26,20 @@ type Photo struct {
 }
 
 type User struct {
-	ID        uuid.UUID `gorm:"type:uuid;primaryKey"`
-	FirstName string    `gorm:"size:100;not null"`
-	LastName  string    `gorm:"size:100;not null"`
-	Email     string    `gorm:"size:100;unique;not null"`
-	Role      Role      `gorm:"size:50;not null"`
-	Photo     *Photo    `gorm:"embedded;embeddedPrefix:photo_"`
-	Password  string    `gorm:"size:255;not null"`
-	Active    bool      `gorm:"default:true"`
-	Verified  bool      `gorm:"default:false"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt gorm.DeletedAt `gorm:"index"`
+	ID                        uuid.UUID `gorm:"type:uuid;primaryKey"`
+	FirstName                 string    `gorm:"size:100;not null"`
+	LastName                  string    `gorm:"size:100;not null"`
+	Email                     string    `gorm:"size:100;unique;not null"`
+	Role                      Role      `gorm:"size:50;not null"`
+	Photo                     *Photo    `gorm:"embedded;embeddedPrefix:photo_"`
+	Password                  string    `gorm:"size:255;not null"`
+	Active                    bool      `gorm:"default:true"`
+	Verified                  bool      `gorm:"default:false"`
+	PasswordResetToken        string    `gorm:"size:255"`
+	PasswordResetTokenExpires time.Time
+	CreatedAt                 time.Time
+	UpdatedAt                 time.Time
+	DeletedAt                 gorm.DeletedAt `gorm:"index"`
 }
 
 // ComparePassword compares the hashed password with a plain password
@@ -103,4 +108,22 @@ func (u *User) AfterUpdate(tx *gorm.DB) (err error) {
 	fmt.Println("Running AfterUpdate function.")
 
 	return nil
+}
+
+// CreatePasswordResetVerificationCode generates a password reset code, sets the token and expiration time
+func (u *User) CreatePasswordResetVerificationToken() (string, error) {
+	// Generate a 4-byte random token
+	bytes := make([]byte, 4)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	token := strings.ToUpper(hex.EncodeToString(bytes))
+
+	// Set the token as the password reset token
+	u.PasswordResetToken = token
+
+	// Set the expiration time to 10 minutes from now
+	u.PasswordResetTokenExpires = time.Now().Add(10 * time.Minute)
+
+	return token, nil
 }

@@ -212,3 +212,53 @@ func UpdateUserPassword(c *fiber.Ctx) error {
 		"message": "Password updated successfully",
 	})
 }
+
+func ForgotPassword(c *fiber.Ctx) error {
+	type ForgotPassword struct {
+		Email string `json:"email"`
+	}
+
+	var input ForgotPassword
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid request body",
+		})
+	}
+
+	var user models.User
+
+	// Check if user exists and retrieve their password
+	if err := database.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Incorrect email or password"})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error checking user credentials"})
+	}
+
+	// Generate a password reset token
+	token, err := user.CreatePasswordResetVerificationToken()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to generate password reset code",
+		})
+	}
+
+	// Save the changes to the database
+	if err := database.DB.Save(&user).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to save password reset token",
+		})
+	}
+
+	// TODO: EMAIL THE TOKEN TO THE USER!!
+
+	// Return a success response with the code
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "Password reset code has been sent to your email.",
+		"token":   token,
+	})
+}
