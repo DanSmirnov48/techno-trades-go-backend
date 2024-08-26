@@ -262,3 +262,96 @@ func ForgotPassword(c *fiber.Ctx) error {
 		"token":   token,
 	})
 }
+
+func VerifyPasswordResetToken(c *fiber.Ctx) error {
+	// Input structure to capture the token from the request body
+	type VerifyTokenInput struct {
+		Token string `json:"token" validate:"required"`
+	}
+
+	var input VerifyTokenInput
+
+	// Parse the request body into the VerifyTokenInput struct
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid request body",
+		})
+	}
+
+	var user models.User
+
+	// Retrieve the user by PasswordResetToken and check if the token is not expired
+	if err := database.DB.Where("password_reset_token = ? AND password_reset_token_expires > ?", input.Token, time.Now()).First(&user).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"status":  "error",
+				"message": "Invalid or expired token",
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Error checking user credentials",
+		})
+	}
+
+	// If the token is valid, allow the user to proceed with resetting their password
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "Token is valid, you may proceed to reset your password",
+	})
+}
+
+func ResetUserPassword(c *fiber.Ctx) error {
+	// Input structure to capture the new password, email, and token
+	type ResetPasswordInput struct {
+		Email    string `json:"email" validate:"required,email"`
+		Token    string `json:"token" validate:"required"`
+		Password string `json:"password" validate:"required,min=8"`
+	}
+
+	var input ResetPasswordInput
+
+	// Parse the request body into the ResetPasswordInput struct
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid request body",
+		})
+	}
+
+	var user models.User
+
+	// Retrieve the user by email and verify the token and expiration time
+	if err := database.DB.Where("email = ? AND password_reset_token = ? AND password_reset_token_expires > ?", input.Email, input.Token, time.Now()).First(&user).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"status":  "error",
+				"message": "Invalid or expired token",
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Error checking user credentials",
+		})
+	}
+
+	// Update the user's password (it will be hashed in the BeforeSave hook)
+	if err := database.DB.Model(&user).Updates(map[string]interface{}{
+		"Password":                  input.Password,
+		"PasswordResetToken":        nil,
+		"PasswordResetTokenExpires": nil,
+	}).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to update password",
+		})
+	}
+
+	// Return a success response
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "Password updated successfully",
+		"user":    user,
+	})
+}
