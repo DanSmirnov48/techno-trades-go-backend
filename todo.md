@@ -5,7 +5,7 @@
 - Get User by Id :heavy_check_mark:
 - Get Current User :x:
 - Create new User :heavy_check_mark:
-- Update User :x:
+- Update User :heavy_check_mark:
 - Delete User by Id :heavy_check_mark:
 
 
@@ -17,6 +17,6 @@
 - Role restricted Route :heavy_check_mark:
 - ForgotPassword :heavy_check_mark:
 	- Email token to user :x:
-- ResetPassword :x:
+- ResetPassword :heavy_check_mark:
 - Update Password :heavy_check_mark:
 - Route Rate Limiter :heavy_check_mark:

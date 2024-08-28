@@ -31,4 +31,6 @@ func SetupRoutes(app *fiber.App) {
 	userRouter.Post("/forgot-password", middlewares.RateLimiter(), controllers.ForgotPassword)
 	userRouter.Post("/verify-reset-token", controllers.VerifyPasswordResetToken)
 	userRouter.Post("/reset-forgotten-password", controllers.ResetUserPassword)
+
+	userRouter.Patch("/update-me", middlewares.Protect(), controllers.UpdateMe)
 }

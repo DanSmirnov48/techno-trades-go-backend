@@ -79,3 +79,48 @@ func DeleteUser(c *fiber.Ctx) error {
 	// Return a success message
 	return c.SendString("User successfully deleted")
 }
+
+// UpdateMe allows the current authenticated user to update their information.
+func UpdateMe(c *fiber.Ctx) error {
+	// Parse the request body into a map
+	var body map[string]interface{}
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid request body",
+		})
+	}
+
+	// Get the authenticated user from the context
+	user, ok := c.Locals("user").(*models.User)
+	if !ok || user == nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "error",
+			"message": "User information is missing. You do not have permission to perform this action.",
+		})
+	}
+
+	// Update the user with the filtered fields
+	if err := database.DB.Model(user).Updates(body).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to update user information",
+		})
+	}
+
+	// Fetch the updated user data
+	if err := database.DB.First(&user, "id = ?", user.ID).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to retrieve updated user information",
+		})
+	}
+
+	// Return the updated user data
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": "success",
+		"data": fiber.Map{
+			"user": user,
+		},
+	})
+}
