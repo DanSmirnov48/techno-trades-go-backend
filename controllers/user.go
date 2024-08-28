@@ -6,9 +6,11 @@ import (
 
 	"github.com/DanSmirnov48/techno-trades-go-backend/database"
 	"github.com/DanSmirnov48/techno-trades-go-backend/models"
+	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils/validate"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // GetUsers retrieves all users
@@ -100,27 +102,25 @@ func UpdateMe(c *fiber.Ctx) error {
 		})
 	}
 
-	// Update the user with the filtered fields
-	if err := database.DB.Model(user).Updates(body).Error; err != nil {
+	// Filter the allowed fields from the request body
+	allowedFields := []string{"FirstName", "LastName"}
+	filteredBody := utils.FilteredFields(body, allowedFields...)
+
+	// Update the user with the filtered fields and use Returning clause to get the updated data
+	if err := database.DB.Model(&user).
+		Clauses(clause.Returning{}).
+		Updates(filteredBody).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  "error",
 			"message": "Failed to update user information",
 		})
 	}
 
-	// Fetch the updated user data
-	if err := database.DB.First(&user, "id = ?", user.ID).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Failed to retrieve updated user information",
-		})
-	}
-
-	// Return the updated user data
+	// Return the updated user data directly from the Returning clause
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": "success",
 		"data": fiber.Map{
-			"user": user,
+			"user": filteredBody,
 		},
 	})
 }

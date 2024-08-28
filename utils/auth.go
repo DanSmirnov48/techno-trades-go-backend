@@ -87,3 +87,14 @@ func GetAuthorizationHeader(c *fiber.Ctx) (string, error) {
 
 	return tokenString, nil
 }
+
+// FilteredFields filters the fields that are allowed to be updated.
+func FilteredFields(body map[string]interface{}, allowedFields ...string) map[string]interface{} {
+	filtered := make(map[string]interface{})
+	for _, field := range allowedFields {
+		if value, exists := body[field]; exists {
+			filtered[field] = value
+		}
+	}
+	return filtered
+}
