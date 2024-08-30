@@ -1,16 +1,8 @@
 package main
 
 import (
-	"bytes"
-	"fmt"
 	"log"
 	"os"
-	"path/filepath"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/helmet"
@@ -19,6 +11,7 @@ import (
 	"github.com/DanSmirnov48/techno-trades-go-backend/database"
 	"github.com/DanSmirnov48/techno-trades-go-backend/middlewares"
 	"github.com/DanSmirnov48/techno-trades-go-backend/routes"
+	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
 )
 
 func main() {
@@ -69,50 +62,17 @@ func UploadAvatar(c *fiber.Ctx) error {
 		})
 	}
 
-	// Open the file
-	f, err := file.Open()
+	// Initialize S3 client
+	s3Client, err := utils.NewS3Client()
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  "error",
-			"message": "Failed to open the file",
+			"message": "Failed to initialize S3 client",
 		})
 	}
-	defer f.Close()
-
-	// Initialize an AWS session
-	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String(os.Getenv("AWS_REGION")),
-		Credentials: credentials.NewStaticCredentials(
-			os.Getenv("AWS_ACCESS_KEY_ID"),
-			os.Getenv("AWS_SECRET_ACCESS_KEY"),
-			"",
-		),
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create AWS session: %v", err)
-	}
-
-	// Create an S3 service client
-	svc := s3.New(sess)
-
-	// Buffer to read the file content
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(f)
-
-	// Define the S3 bucket name and key (path in the bucket)
-	bucket := os.Getenv("AWS_S3_BUCKET_NAME")
-	key := fmt.Sprintf("avatars/%s", filepath.Base(file.Filename))
 
 	// Upload the file to S3
-	_, err = svc.PutObject(&s3.PutObjectInput{
-		Bucket:               aws.String(bucket),
-		Key:                  aws.String(key),
-		Body:                 bytes.NewReader(buf.Bytes()),
-		ContentLength:        aws.Int64(file.Size),
-		ContentType:          aws.String(file.Header.Get("Content-Type")),
-		ContentDisposition:   aws.String("inline"),
-		ServerSideEncryption: aws.String("AES256"),
-	})
+	fileURL, err := s3Client.UploadFile(file)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  "error",
@@ -120,12 +80,10 @@ func UploadAvatar(c *fiber.Ctx) error {
 		})
 	}
 
-	// Return the S3 URL for the uploaded file
-	url := fmt.Sprintf("https://%s.s3.amazonaws.com/%s", bucket, key)
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": "success",
 		"data": fiber.Map{
-			"url": url,
+			"user": fileURL,
 		},
 	})
 }
