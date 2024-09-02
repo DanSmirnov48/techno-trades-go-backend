@@ -1,7 +1,9 @@
 package controllers
 
 import (
+	"fmt"
 	"log"
+	"path/filepath"
 	"strings"
 
 	"github.com/DanSmirnov48/techno-trades-go-backend/database"
@@ -9,6 +11,7 @@ import (
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils/validate"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -126,6 +129,15 @@ func UpdateMe(c *fiber.Ctx) error {
 }
 
 func UploadAvatar(c *fiber.Ctx) error {
+	// Retrieve the authenticated user from the context
+	user, ok := c.Locals("user").(*models.User)
+	if !ok || user == nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "error",
+			"message": "User not found or not authenticated",
+		})
+	}
+
 	// Retrieve the file from the form data
 	file, err := c.FormFile("upload")
 	if err != nil {
@@ -134,6 +146,10 @@ func UploadAvatar(c *fiber.Ctx) error {
 			"message": "Failed to get the file",
 		})
 	}
+
+	// Create a custom file name based on the user's name and ID, preserving the file extension
+	fileExtension := filepath.Ext(file.Filename)
+	file.Filename = fmt.Sprintf("%s_%s%s", user.FirstName, user.ID.String(), fileExtension)
 
 	// Initialize S3 client
 	s3Client, err := utils.NewS3Client()
@@ -153,10 +169,30 @@ func UploadAvatar(c *fiber.Ctx) error {
 		})
 	}
 
+	// Create the Photo object
+	photo := &models.Photo{
+		Key:  uuid.New(),
+		Name: fmt.Sprintf("%s_%s", user.FirstName, user.ID.String()),
+		URL:  fileURL,
+	}
+
+	// Update the user's photo in the database
+	if err := database.DB.Model(user).Updates(map[string]interface{}{
+		"photo_key":  photo.Key,
+		"photo_name": photo.Name,
+		"photo_url":  photo.URL,
+	}).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to update user photo",
+		})
+	}
+
+	// Return the updated user data
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": "success",
 		"data": fiber.Map{
-			"user": fileURL,
+			"user": user,
 		},
 	})
 }

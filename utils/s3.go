@@ -58,7 +58,7 @@ func (s *S3Client) UploadFile(file *multipart.FileHeader) (string, error) {
 	}
 
 	// Generate the file key with the avatars folder
-	fileKey := fmt.Sprintf("avatars/%s", filepath.Base(file.Filename))
+	fileKey := fmt.Sprintf("users/%s", filepath.Base(file.Filename))
 
 	// Upload the file to S3
 	_, err = s.s3.PutObject(&s3.PutObjectInput{

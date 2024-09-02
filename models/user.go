@@ -20,9 +20,9 @@ const (
 )
 
 type Photo struct {
-	Key  string `gorm:"size:255"`
-	Name string `gorm:"size:255"`
-	URL  string `gorm:"size:255"`
+	Key  uuid.UUID `gorm:"type:uuid;"`
+	Name string    `gorm:"size:255"`
+	URL  string    `gorm:"size:255"`
 }
 
 type User struct {
