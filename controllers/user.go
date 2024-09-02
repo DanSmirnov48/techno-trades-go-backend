@@ -22,7 +22,7 @@ func GetUsers(c *fiber.Ctx) error {
 
 func GetUserByID(db *gorm.DB, userID string) (*models.User, *fiber.Error) {
 	var user models.User
-	if err := db.First(&user, "id = ?", userID).Error; err != nil {
+	if err := db.Omit("Password").First(&user, "id = ?", userID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fiber.NewError(fiber.StatusNotFound, "User not found")
 		}
@@ -120,7 +120,43 @@ func UpdateMe(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": "success",
 		"data": fiber.Map{
-			"user": filteredBody,
+			"user": user,
+		},
+	})
+}
+
+func UploadAvatar(c *fiber.Ctx) error {
+	// Retrieve the file from the form data
+	file, err := c.FormFile("upload")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to get the file",
+		})
+	}
+
+	// Initialize S3 client
+	s3Client, err := utils.NewS3Client()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to initialize S3 client",
+		})
+	}
+
+	// Upload the file to S3
+	fileURL, err := s3Client.UploadFile(file)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to upload file to S3",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": "success",
+		"data": fiber.Map{
+			"user": fileURL,
 		},
 	})
 }

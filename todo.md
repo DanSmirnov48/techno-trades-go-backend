@@ -3,7 +3,7 @@
 ## User Controller
 - Get all Users :heavy_check_mark:
 - Get User by Id :heavy_check_mark:
-- Get Current User :x:
+- Get Current User :heavy_check_mark:
 - Create new User :heavy_check_mark:
 - Update User :heavy_check_mark:
 - Delete User by Id :heavy_check_mark:

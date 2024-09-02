@@ -85,7 +85,7 @@ func LogoutUser(c *fiber.Ctx) error {
 }
 
 // DecodeJWT verifies the JWT token, extracts the user ID, and retrieves the user from the database.
-func DecodeJWT(c *fiber.Ctx) error {
+func GetCurrentUser(c *fiber.Ctx) error {
 	// Get the JWT from the cookies
 	tokenString := c.Cookies("accessToken")
 

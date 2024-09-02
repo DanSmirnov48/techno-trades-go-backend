@@ -11,7 +11,6 @@ import (
 	"github.com/DanSmirnov48/techno-trades-go-backend/database"
 	"github.com/DanSmirnov48/techno-trades-go-backend/middlewares"
 	"github.com/DanSmirnov48/techno-trades-go-backend/routes"
-	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
 )
 
 func main() {
@@ -44,46 +43,8 @@ func main() {
 		return c.Status(200).JSON(fiber.Map{"msg": "hello there"})
 	})
 
-	app.Post("/file-upload", UploadAvatar)
-
 	// Set up routes
-	routes.SetupRoutes(app)
+	routes.RegisterUserRoutes(app)
 
 	log.Fatal(app.Listen("0.0.0.0:" + port))
-}
-
-func UploadAvatar(c *fiber.Ctx) error {
-	// Retrieve the file from the form data
-	file, err := c.FormFile("upload")
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Failed to get the file",
-		})
-	}
-
-	// Initialize S3 client
-	s3Client, err := utils.NewS3Client()
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Failed to initialize S3 client",
-		})
-	}
-
-	// Upload the file to S3
-	fileURL, err := s3Client.UploadFile(file)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Failed to upload file to S3",
-		})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status": "success",
-		"data": fiber.Map{
-			"user": fileURL,
-		},
-	})
 }

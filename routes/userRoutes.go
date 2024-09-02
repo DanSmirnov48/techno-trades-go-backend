@@ -8,7 +8,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func SetupRoutes(app *fiber.App) {
+func RegisterUserRoutes(app *fiber.App) {
 	userRouter := app.Group("/api/users")
 
 	userRouter.Get("/", controllers.GetUsers)
@@ -18,7 +18,7 @@ func SetupRoutes(app *fiber.App) {
 	userRouter.Post("/login", middlewares.RateLimiter(), controllers.LoginUser)
 	userRouter.Post("/logout", controllers.LogoutUser)
 
-	userRouter.Get("/me", controllers.DecodeJWT)
+	userRouter.Get("/me", controllers.GetCurrentUser)
 	userRouter.Get("/protected", middlewares.Protect(), controllers.ProtectedEndpoint)
 
 	userRouter.Get("/admin",
@@ -33,4 +33,6 @@ func SetupRoutes(app *fiber.App) {
 	userRouter.Post("/reset-forgotten-password", controllers.ResetUserPassword)
 
 	userRouter.Patch("/update-me", middlewares.Protect(), controllers.UpdateMe)
+
+	userRouter.Post("/file-upload", middlewares.Protect(), controllers.UploadAvatar)
 }
