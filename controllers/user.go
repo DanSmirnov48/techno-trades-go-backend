@@ -128,7 +128,7 @@ func UpdateMe(c *fiber.Ctx) error {
 	})
 }
 
-func UploadAvatar(c *fiber.Ctx) error {
+func UploadUserPhoto(c *fiber.Ctx) error {
 	// Retrieve the authenticated user from the context
 	user, ok := c.Locals("user").(*models.User)
 	if !ok || user == nil {
@@ -172,7 +172,7 @@ func UploadAvatar(c *fiber.Ctx) error {
 	// Create the Photo object
 	photo := &models.Photo{
 		Key:  uuid.New(),
-		Name: fmt.Sprintf("%s_%s", user.FirstName, user.ID.String()),
+		Name: fmt.Sprintf("%s_%s%s", user.FirstName, user.ID.String(), fileExtension),
 		URL:  fileURL,
 	}
 
@@ -189,6 +189,58 @@ func UploadAvatar(c *fiber.Ctx) error {
 	}
 
 	// Return the updated user data
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": "success",
+		"data": fiber.Map{
+			"user": user,
+		},
+	})
+}
+
+func DeleteUserPhoto(c *fiber.Ctx) error {
+	// Retrieve the authenticated user from the context
+	user, ok := c.Locals("user").(*models.User)
+	if !ok || user == nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "error",
+			"message": "User not found or not authenticated",
+		})
+	}
+
+	// Initialize S3 client
+	s3Client, err := utils.NewS3Client()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to initialize S3 client",
+		})
+	}
+
+	// Delete the old photo from S3 if it exists
+	if user.Photo != nil && user.Photo.Key != uuid.Nil {
+		fileKey := fmt.Sprintf("users/%s", user.Photo.Name)
+
+		err := s3Client.DeleteFile(fileKey)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"status":  "error",
+				"message": "Failed to delete old photo from S3",
+			})
+		}
+	}
+
+	// Update the user's photo in the database
+	if err := database.DB.Model(user).Updates(map[string]interface{}{
+		"photo_key":  nil,
+		"photo_name": nil,
+		"photo_url":  nil,
+	}).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to update user photo",
+		})
+	}
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": "success",
 		"data": fiber.Map{

@@ -34,5 +34,6 @@ func RegisterUserRoutes(app *fiber.App) {
 
 	userRouter.Patch("/update-me", middlewares.Protect(), controllers.UpdateMe)
 
-	userRouter.Post("/file-upload", middlewares.Protect(), controllers.UploadAvatar)
+	userRouter.Post("/file-upload", middlewares.Protect(), controllers.UploadUserPhoto)
+	userRouter.Get("/file-delete", middlewares.Protect(), controllers.DeleteUserPhoto)
 }

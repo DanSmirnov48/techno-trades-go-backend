@@ -100,3 +100,29 @@ func (s *S3Client) GetFile(fileKey string) ([]byte, error) {
 
 	return fileBytes, nil
 }
+
+// DeleteFile deletes a file from the S3 bucket
+func (s *S3Client) DeleteFile(fileKey string) error {
+	// Create the delete input request
+	input := &s3.DeleteObjectInput{
+		Bucket: aws.String(s.bucketName),
+		Key:    aws.String(fileKey),
+	}
+
+	// Perform the delete operation
+	_, err := s.s3.DeleteObject(input)
+	if err != nil {
+		return fmt.Errorf("failed to delete file from S3: %v", err)
+	}
+
+	// Wait until the file is deleted (optional but recommended)
+	err = s.s3.WaitUntilObjectNotExists(&s3.HeadObjectInput{
+		Bucket: aws.String(s.bucketName),
+		Key:    aws.String(fileKey),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to wait for file deletion from S3: %v", err)
+	}
+
+	return nil
+}
