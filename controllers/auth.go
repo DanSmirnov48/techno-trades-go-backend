@@ -13,8 +13,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// LoginUser handles the login logic
-func LoginUser(c *fiber.Ctx) error {
+// LogIn handles the login logic
+func LogIn(c *fiber.Ctx) error {
 	// 1) Parse and validate the login input.
 	input, err := validate.ParseLoginInput(c)
 	if err != nil {
@@ -75,8 +75,8 @@ func LoginUser(c *fiber.Ctx) error {
 	})
 }
 
-// LogoutUser handles the user logout
-func LogoutUser(c *fiber.Ctx) error {
+// LogOut handles the user logout
+func LogOut(c *fiber.Ctx) error {
 	// Clear the access token cookie
 	c.ClearCookie("accessToken")
 
@@ -116,7 +116,7 @@ func GetCurrentUser(c *fiber.Ctx) error {
 	}
 
 	// Call the GetUserByID function
-	user, err := GetUserByID(database.DB, userID)
+	user, err := getUserByID(database.DB, userID)
 	if user == nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
 	}
@@ -130,35 +130,6 @@ func GetCurrentUser(c *fiber.Ctx) error {
 		"data": fiber.Map{
 			"user": user,
 		},
-	})
-}
-
-// Example handler to access the user object
-func ProtectedEndpoint(c *fiber.Ctx) error {
-	user, ok := c.Locals("user").(*models.User)
-	if !ok || user == nil {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "error",
-			"message": "User information is missing. You do not have permission to perform this action.",
-		})
-	}
-
-	return c.JSON(fiber.Map{
-		"user": user,
-	})
-}
-
-func AdminRestictedRoute(c *fiber.Ctx) error {
-	user, ok := c.Locals("user").(*models.User)
-	if !ok || user == nil || user.Role != models.AdminRole {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":  "error",
-			"message": "User information is missing. You do not have permission to perform this action.",
-		})
-	}
-
-	return c.JSON(fiber.Map{
-		"user": user,
 	})
 }
 

@@ -18,12 +18,20 @@ import (
 
 // GetUsers retrieves all users
 func GetUsers(c *fiber.Ctx) error {
+	user, ok := c.Locals("user").(*models.User)
+	if !ok || user == nil || user.Role != models.AdminRole {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "error",
+			"message": "User information is missing. You do not have permission to perform this action.",
+		})
+	}
+
 	var users []models.User
 	database.DB.Find(&users)
-	return c.JSON(users)
+	return c.Status(fiber.StatusFound).JSON(users)
 }
 
-func GetUserByID(db *gorm.DB, userID string) (*models.User, *fiber.Error) {
+func getUserByID(db *gorm.DB, userID string) (*models.User, *fiber.Error) {
 	var user models.User
 	if err := db.Omit("Password").First(&user, "id = ?", userID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -34,8 +42,18 @@ func GetUserByID(db *gorm.DB, userID string) (*models.User, *fiber.Error) {
 	return &user, nil
 }
 
-// CreateUser creates a new user
-func CreateUser(c *fiber.Ctx) error {
+func GetUserByID(c *fiber.Ctx) error {
+	id := c.Params("id")
+	user, err := getUserByID(database.DB, id)
+	if err != nil {
+		return err
+	}
+
+	return c.Status(fiber.StatusFound).JSON(user)
+}
+
+// SignUp creates a new user
+func SignUp(c *fiber.Ctx) error {
 	// Parse and validate the input
 	input, err := validate.ParseCreateUserInput(c)
 	if err != nil {
@@ -65,13 +83,13 @@ func CreateUser(c *fiber.Ctx) error {
 }
 
 // DeleteUser deletes a user by ID
-func DeleteUser(c *fiber.Ctx) error {
-	// Get the ID from the request URL
-	id := c.Params("id")
-
-	user, err := GetUserByID(database.DB, id)
-	if err != nil {
-		return err
+func DeleteMe(c *fiber.Ctx) error {
+	user, ok := c.Locals("user").(*models.User)
+	if !ok || user == nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "error",
+			"message": "User information is missing. You do not have permission to perform this action.",
+		})
 	}
 
 	// Delete the user (soft delete)
@@ -81,8 +99,10 @@ func DeleteUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).SendString("Could not delete user")
 	}
 
-	// Return a success message
-	return c.SendString("User successfully deleted")
+	return c.Status(fiber.StatusGone).JSON(fiber.Map{
+		"status": "success",
+		"data":   nil,
+	})
 }
 
 // UpdateMe allows the current authenticated user to update their information.

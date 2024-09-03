@@ -11,29 +11,32 @@ import (
 func RegisterUserRoutes(app *fiber.App) {
 	userRouter := app.Group("/api/users")
 
-	userRouter.Get("/", controllers.GetUsers)
-	userRouter.Post("/", controllers.CreateUser)
-	userRouter.Delete("/:id", controllers.DeleteUser)
+	// User AUTHENTICATION
+	userRouter.Post("/signup", controllers.SignUp)
+	userRouter.Post("/login", middlewares.RateLimiter(), controllers.LogIn)
+	userRouter.Post("/logout", controllers.LogOut)
 
-	userRouter.Post("/login", middlewares.RateLimiter(), controllers.LoginUser)
-	userRouter.Post("/logout", controllers.LogoutUser)
-
-	userRouter.Get("/me", controllers.GetCurrentUser)
-	userRouter.Get("/protected", middlewares.Protect(), controllers.ProtectedEndpoint)
-
-	userRouter.Get("/admin",
-		middlewares.Protect(),
-		middlewares.RestrictTo(models.AdminRole),
-		controllers.AdminRestictedRoute)
-
-	userRouter.Patch("/update-my-password", middlewares.Protect(), controllers.UpdateUserPassword)
-
+	// Password RESET and UPDATE for UNAUTHORIZED users
 	userRouter.Post("/forgot-password", middlewares.RateLimiter(), controllers.ForgotPassword)
-	userRouter.Post("/verify-reset-token", controllers.VerifyPasswordResetToken)
+	userRouter.Post("/verify-password-reset-token", controllers.VerifyPasswordResetToken)
 	userRouter.Post("/reset-forgotten-password", controllers.ResetUserPassword)
 
+	// Profile UPDATE for AUTHORIZED users
+	userRouter.Patch("/update-my-password", middlewares.Protect(), controllers.UpdateUserPassword)
 	userRouter.Patch("/update-me", middlewares.Protect(), controllers.UpdateMe)
+	userRouter.Delete("/deactivate-me", middlewares.Protect(), controllers.DeleteMe)
 
+	// CURRENT USER PHOTO UPDATE
 	userRouter.Post("/file-upload", middlewares.Protect(), controllers.UploadUserPhoto)
 	userRouter.Get("/file-delete", middlewares.Protect(), controllers.DeleteUserPhoto)
+
+	// Get CURRENT AUTHORIZED user
+	userRouter.Get("/me", controllers.GetCurrentUser)
+
+	userRouter.Get("/:id", controllers.GetUserByID)
+
+	userRouter.Get("/",
+		middlewares.Protect(),
+		middlewares.RestrictTo(models.AdminRole),
+		controllers.GetUsers)
 }
