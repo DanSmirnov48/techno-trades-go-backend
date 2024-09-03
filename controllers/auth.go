@@ -116,7 +116,7 @@ func GetCurrentUser(c *fiber.Ctx) error {
 	}
 
 	// Call the GetUserByID function
-	user, err := getUserByID(database.DB, userID)
+	user, err := GetUserByID(database.DB, userID)
 	if user == nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
 	}

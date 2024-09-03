@@ -31,7 +31,7 @@ func GetUsers(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusFound).JSON(users)
 }
 
-func getUserByID(db *gorm.DB, userID string) (*models.User, *fiber.Error) {
+func GetUserByID(db *gorm.DB, userID string) (*models.User, *fiber.Error) {
 	var user models.User
 	if err := db.Omit("Password").First(&user, "id = ?", userID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -42,9 +42,9 @@ func getUserByID(db *gorm.DB, userID string) (*models.User, *fiber.Error) {
 	return &user, nil
 }
 
-func GetUserByID(c *fiber.Ctx) error {
+func GetUserByParamsID(c *fiber.Ctx) error {
 	id := c.Params("id")
-	user, err := getUserByID(database.DB, id)
+	user, err := GetUserByID(database.DB, id)
 	if err != nil {
 		return err
 	}
@@ -171,17 +171,8 @@ func UploadUserPhoto(c *fiber.Ctx) error {
 	fileExtension := filepath.Ext(file.Filename)
 	file.Filename = fmt.Sprintf("%s_%s%s", user.FirstName, user.ID.String(), fileExtension)
 
-	// Initialize S3 client
-	s3Client, err := utils.NewS3Client()
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Failed to initialize S3 client",
-		})
-	}
-
 	// Upload the file to S3
-	fileURL, err := s3Client.UploadFile(file)
+	fileURL, err := utils.UploadFile(file)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  "error",
@@ -227,20 +218,11 @@ func DeleteUserPhoto(c *fiber.Ctx) error {
 		})
 	}
 
-	// Initialize S3 client
-	s3Client, err := utils.NewS3Client()
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Failed to initialize S3 client",
-		})
-	}
-
 	// Delete the old photo from S3 if it exists
 	if user.Photo != nil && user.Photo.Key != uuid.Nil {
 		fileKey := fmt.Sprintf("users/%s", user.Photo.Name)
 
-		err := s3Client.DeleteFile(fileKey)
+		err := utils.DeleteFile(fileKey)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"status":  "error",

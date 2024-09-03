@@ -33,7 +33,7 @@ func RegisterUserRoutes(app *fiber.App) {
 	// Get CURRENT AUTHORIZED user
 	userRouter.Get("/me", controllers.GetCurrentUser)
 
-	userRouter.Get("/:id", controllers.GetUserByID)
+	userRouter.Get("/:id", controllers.GetUserByParamsID)
 
 	userRouter.Get("/",
 		middlewares.Protect(),

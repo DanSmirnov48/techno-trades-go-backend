@@ -21,7 +21,7 @@ type S3Client struct {
 }
 
 // NewS3Client creates a new S3 client
-func NewS3Client() (*S3Client, error) {
+func newS3Client() (*S3Client, error) {
 	// Initialize an AWS session
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String(os.Getenv("AWS_REGION")),
@@ -43,7 +43,13 @@ func NewS3Client() (*S3Client, error) {
 }
 
 // UploadFile uploads a file to S3 and returns the URL of the uploaded file
-func (s *S3Client) UploadFile(file *multipart.FileHeader) (string, error) {
+func UploadFile(file *multipart.FileHeader) (string, error) {
+	// Create a new S3 client
+	s3Client, err := newS3Client()
+	if err != nil {
+		return "", err
+	}
+
 	// Open the file
 	f, err := file.Open()
 	if err != nil {
@@ -61,8 +67,8 @@ func (s *S3Client) UploadFile(file *multipart.FileHeader) (string, error) {
 	fileKey := fmt.Sprintf("users/%s", filepath.Base(file.Filename))
 
 	// Upload the file to S3
-	_, err = s.s3.PutObject(&s3.PutObjectInput{
-		Bucket:               aws.String(s.bucketName),
+	_, err = s3Client.s3.PutObject(&s3.PutObjectInput{
+		Bucket:               aws.String(s3Client.bucketName),
 		Key:                  aws.String(fileKey),
 		Body:                 bytes.NewReader(fileBytes),
 		ACL:                  aws.String("public-read"), // Make the file publicly accessible
@@ -76,15 +82,20 @@ func (s *S3Client) UploadFile(file *multipart.FileHeader) (string, error) {
 	}
 
 	// Construct the file URL
-	fileURL := fmt.Sprintf("https://%s.s3.amazonaws.com/%s", s.bucketName, fileKey)
+	fileURL := fmt.Sprintf("https://%s.s3.amazonaws.com/%s", s3Client.bucketName, fileKey)
 	return fileURL, nil
 }
 
 // GetFile retrieves a file from S3 and returns its content
-func (s *S3Client) GetFile(fileKey string) ([]byte, error) {
+func GetFile(fileKey string) ([]byte, error) {
+	// Create a new S3 client
+	s3Client, err := newS3Client()
+	if err != nil {
+		return nil, err
+	}
 	// Retrieve the file from S3
-	result, err := s.s3.GetObject(&s3.GetObjectInput{
-		Bucket: aws.String(s.bucketName),
+	result, err := s3Client.s3.GetObject(&s3.GetObjectInput{
+		Bucket: aws.String(s3Client.bucketName),
 		Key:    aws.String(fileKey),
 	})
 	if err != nil {
@@ -102,22 +113,28 @@ func (s *S3Client) GetFile(fileKey string) ([]byte, error) {
 }
 
 // DeleteFile deletes a file from the S3 bucket
-func (s *S3Client) DeleteFile(fileKey string) error {
+func DeleteFile(fileKey string) error {
+	// Create a new S3 client
+	s3Client, err := newS3Client()
+	if err != nil {
+		return err
+	}
+
 	// Create the delete input request
 	input := &s3.DeleteObjectInput{
-		Bucket: aws.String(s.bucketName),
+		Bucket: aws.String(s3Client.bucketName),
 		Key:    aws.String(fileKey),
 	}
 
 	// Perform the delete operation
-	_, err := s.s3.DeleteObject(input)
+	_, err = s3Client.s3.DeleteObject(input)
 	if err != nil {
 		return fmt.Errorf("failed to delete file from S3: %v", err)
 	}
 
 	// Wait until the file is deleted (optional but recommended)
-	err = s.s3.WaitUntilObjectNotExists(&s3.HeadObjectInput{
-		Bucket: aws.String(s.bucketName),
+	err = s3Client.s3.WaitUntilObjectNotExists(&s3.HeadObjectInput{
+		Bucket: aws.String(s3Client.bucketName),
 		Key:    aws.String(fileKey),
 	})
 	if err != nil {
