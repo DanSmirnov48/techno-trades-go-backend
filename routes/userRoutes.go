@@ -15,6 +15,7 @@ func RegisterUserRoutes(app *fiber.App) {
 	userRouter.Post("/signup", controllers.SignUp)
 	userRouter.Post("/login", middlewares.RateLimiter(), controllers.LogIn)
 	userRouter.Post("/logout", controllers.LogOut)
+	userRouter.Get("/validate", controllers.Validate)
 
 	// Password RESET and UPDATE for UNAUTHORIZED users
 	userRouter.Post("/forgot-password", middlewares.RateLimiter(), controllers.ForgotPassword)

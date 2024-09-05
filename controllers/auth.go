@@ -133,6 +133,56 @@ func GetCurrentUser(c *fiber.Ctx) error {
 	})
 }
 
+// DecodeJWT verifies the JWT token, extracts the user ID, and retrieves the user from the database.
+func Validate(c *fiber.Ctx) error {
+	// Get the JWT from the cookies
+	accessToken := c.Cookies("accessToken")
+
+	if accessToken == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Missing or invalid JWT",
+		})
+	}
+
+	// Parse the JWT token
+	secret := os.Getenv("JWT_SECRET")
+	token, err := utils.ParseJWT(accessToken, secret)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"status":  "error",
+			"message": err.Error(),
+		})
+	}
+
+	// Validate the token claims
+	userID, err := utils.ValidateJWTClaims(token)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"status":  "error",
+			"message": err.Error(),
+		})
+	}
+
+	// Call the GetUserByID function
+	user, err := GetUserByID(database.DB, userID)
+	if user == nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	// Attach the user object to the context
+	c.Locals("user", user)
+
+	// Return the user object in the response
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": "success",
+		"token":  accessToken,
+		"data": fiber.Map{
+			"user": user,
+		},
+	})
+}
+
 // UpdateUserPassword allows authenticated users to update their password.
 func UpdateUserPassword(c *fiber.Ctx) error {
 	// UpdatePasswordInput holds the data for updating the user's password.
