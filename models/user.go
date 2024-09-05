@@ -35,7 +35,8 @@ type User struct {
 	Password                  string    `gorm:"size:255;not null"`
 	Active                    bool      `gorm:"default:true"`
 	Verified                  bool      `gorm:"default:false"`
-	PasswordResetToken        string    `gorm:"size:255"`
+	VerificationCode          int64
+	PasswordResetToken        string `gorm:"size:255"`
 	PasswordResetTokenExpires time.Time
 	CreatedAt                 time.Time
 	UpdatedAt                 time.Time

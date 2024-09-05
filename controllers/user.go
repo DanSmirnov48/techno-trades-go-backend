@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"path/filepath"
 	"strings"
 
@@ -62,10 +63,11 @@ func SignUp(c *fiber.Ctx) error {
 
 	// Create the user in the database
 	user := models.User{
-		FirstName: input.FirstName,
-		LastName:  input.LastName,
-		Email:     input.Email,
-		Password:  input.Password,
+		FirstName:        input.FirstName,
+		LastName:         input.LastName,
+		Email:            input.Email,
+		Password:         input.Password,
+		VerificationCode: rand.Int63n(900000) + 100000,
 	}
 
 	if err := database.DB.Create(&user).Error; err != nil {
@@ -78,6 +80,8 @@ func SignUp(c *fiber.Ctx) error {
 		log.Printf("Error creating user: %v", err)
 		return c.Status(fiber.StatusInternalServerError).SendString("Could not create user")
 	}
+
+	// TODO: EMAIL THE VERIFICATION CODE TO THE USER
 
 	return c.Status(fiber.StatusCreated).JSON(user)
 }

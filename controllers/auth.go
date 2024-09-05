@@ -183,6 +183,54 @@ func Validate(c *fiber.Ctx) error {
 	})
 }
 
+// VerifyAccount verifies a user's account using the provided verification code
+func VerifyAccount(c *fiber.Ctx) error {
+	// Parse the code from the request body
+	var input struct {
+		Code int64 `json:"code"`
+	}
+
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid request body",
+		})
+	}
+
+	// Find the user with the provided verification code
+	var user models.User
+	if err := database.DB.Where("verification_code = ?", input.Code).First(&user).Error; err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid verification code",
+		})
+	}
+
+	// Check if the verification code matches the one stored in the user record
+	if user.VerificationCode != input.Code {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid verification code",
+		})
+	}
+
+	// Update the user's verification status to true and remove the verification code
+	user.Verified = true
+	user.VerificationCode = 0
+
+	if err := database.DB.Save(&user).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to verify account",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": "success",
+		"data":   user,
+	})
+}
+
 // UpdateUserPassword allows authenticated users to update their password.
 func UpdateUserPassword(c *fiber.Ctx) error {
 	// UpdatePasswordInput holds the data for updating the user's password.

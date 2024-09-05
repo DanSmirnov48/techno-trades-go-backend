@@ -13,6 +13,8 @@
 - User SignUp :heavy_check_mark:
 - User SignIn :heavy_check_mark:
 - User SignOut :heavy_check_mark:
+- User Validate :heavy_check_mark:
+- User Account Verify :heavy_check_mark:
 - Protect middleware :heavy_check_mark:
 - Role restricted Route :heavy_check_mark:
 - ForgotPassword :heavy_check_mark:
