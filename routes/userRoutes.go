@@ -14,7 +14,7 @@ func RegisterUserRoutes(app *fiber.App) {
 	// User AUTHENTICATION
 	userRouter.Post("/signup", controllers.SignUp)
 	userRouter.Post("/login", middlewares.RateLimiter(), controllers.LogIn)
-	userRouter.Post("/logout", controllers.LogOut)
+	userRouter.Get("/logout", controllers.LogOut)
 	userRouter.Post("/verify-account", controllers.VerifyAccount)
 	userRouter.Get("/validate", controllers.Validate)
 
@@ -27,6 +27,10 @@ func RegisterUserRoutes(app *fiber.App) {
 	userRouter.Patch("/update-my-password", middlewares.Protect(), controllers.UpdateUserPassword)
 	userRouter.Patch("/update-me", middlewares.Protect(), controllers.UpdateMe)
 	userRouter.Delete("/deactivate-me", middlewares.Protect(), controllers.DeleteMe)
+	userRouter.Get("/request-email-change-verification-code",
+		middlewares.Protect(),
+		controllers.GenerateUserEmailChangeVerificationToken)
+	userRouter.Patch("/update-my-email", middlewares.Protect(), controllers.UpdateUserEmail)
 
 	// CURRENT USER PHOTO UPDATE
 	userRouter.Post("/file-upload", middlewares.Protect(), controllers.UploadUserPhoto)

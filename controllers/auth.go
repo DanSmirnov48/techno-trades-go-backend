@@ -78,7 +78,11 @@ func LogIn(c *fiber.Ctx) error {
 // LogOut handles the user logout
 func LogOut(c *fiber.Ctx) error {
 	// Clear the access token cookie
-	c.ClearCookie("accessToken")
+	c.Cookie(&fiber.Cookie{
+		Name:    "accessToken",
+		Expires: time.Now().Add(-time.Hour * 24),
+		Value:   "",
+	})
 
 	// Send response
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success"})
@@ -422,5 +426,105 @@ func ResetUserPassword(c *fiber.Ctx) error {
 		"status":  "success",
 		"message": "Password updated successfully",
 		"user":    user,
+	})
+}
+
+func GenerateUserEmailChangeVerificationToken(c *fiber.Ctx) error {
+	user, ok := c.Locals("user").(*models.User)
+	if !ok || user == nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "error",
+			"message": "User information is missing. You do not have permission to perform this action.",
+		})
+	}
+
+	// Check if the users account is verifed
+	if !user.Verified {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Your account is not verified",
+		})
+	}
+
+	// Generate an email update token
+	token, err := user.CreateEmailUpdateVerificationToken()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to generate password reset code",
+		})
+	}
+
+	// Save the changes to the database
+	if err := database.DB.Save(&user).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to save password reset token",
+		})
+	}
+
+	// TODO: EMAIL THE TOKEN TO THE USER!!
+
+	// Return a success response with the code
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "Email update token has been sent to your email.",
+		"token":   token,
+	})
+}
+
+func UpdateUserEmail(c *fiber.Ctx) error {
+	// Parse the code from the request body
+	var input struct {
+		Code     string `json:"code"`
+		NewEmail string `json:"newEmail"`
+	}
+
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid request body",
+		})
+	}
+
+	user, ok := c.Locals("user").(*models.User)
+	if !ok || user == nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "error",
+			"message": "User information is missing. You do not have permission to perform this action.",
+		})
+	}
+
+	// Check if the users account is verifed
+	if !user.Verified {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Your account is not verified",
+		})
+	}
+
+	// Check if the verification code matches the one stored in the user record
+	if user.EmailUpdateVerificationToken != input.Code {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid verification code",
+		})
+	}
+
+	// Update the user's password (it will be hashed in the BeforeSave hook)
+	if err := database.DB.Model(&user).Updates(map[string]interface{}{
+		"email":                           input.NewEmail,
+		"email_update_verification_token": nil,
+	}).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to update password",
+		})
+	}
+
+	// Return a success response with the code
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": "success",
+		"data":   user,
 	})
 }

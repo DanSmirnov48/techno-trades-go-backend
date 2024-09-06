@@ -34,7 +34,7 @@ func GetUsers(c *fiber.Ctx) error {
 
 func GetUserByID(db *gorm.DB, userID string) (*models.User, *fiber.Error) {
 	var user models.User
-	if err := db.Omit("Password").First(&user, "id = ?", userID).Error; err != nil {
+	if err := db.First(&user, "id = ?", userID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fiber.NewError(fiber.StatusNotFound, "User not found")
 		}
