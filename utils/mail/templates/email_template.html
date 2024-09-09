@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      .button-style {
+        background-color: #008cba;
+        border-color: #008cba;
+        border-radius: 4px;
+        color: white;
+        height: 50px;
+        width: 300px;
+        cursor: pointer;
+      }
+
+      h1 {
+        text-align: center;
+      }
+
+      p,
+      div {
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <h1>We're glad you're here, {{.Name}}</h1>
+    </div>
+    <div>We just want to confirm it's you.<br /><br /></div>
+    <div>
+      <a href="{{.ConfirmationURL}}">
+        <button class="button-style">
+          Click to confirm your email address
+        </button>
+      </a>
+    </div>
+    <div>
+      <br />If you didn't create a proctl account, just delete this email.
+    </div>
+  </body>
+</html>
