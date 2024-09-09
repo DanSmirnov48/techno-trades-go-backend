@@ -7,6 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/helmet"
 	"github.com/joho/godotenv"
+	"gopkg.in/gomail.v2"
 
 	"github.com/DanSmirnov48/techno-trades-go-backend/database"
 	"github.com/DanSmirnov48/techno-trades-go-backend/middlewares"
@@ -21,6 +22,8 @@ func main() {
 			log.Fatal("Error loading .env file:", err)
 		}
 	}
+
+	sendEmail()
 
 	// Connect to the database
 	database.ConnectDB()
@@ -47,4 +50,26 @@ func main() {
 	routes.RegisterUserRoutes(app)
 
 	log.Fatal(app.Listen("0.0.0.0:" + port))
+}
+
+func sendEmail() {
+	m := gomail.NewMessage()
+
+	m.SetHeader("From", os.Getenv("EMAIL_USERNAME"))
+	m.SetHeader("To", "")
+	m.SetHeader("Subject", "Test Email from Go")
+	m.SetBody("text/html", "<h1>Hello</h1><p>This is a test email!</p>")
+
+	d := gomail.NewDialer(
+		os.Getenv("EMAIL_HOST"),
+		587,
+		os.Getenv("EMAIL_USERNAME"),
+		os.Getenv("EMAIL_PASSWORD"),
+	)
+
+	if err := d.DialAndSend(m); err != nil {
+		log.Fatal(err)
+	} else {
+		log.Println("Email sent successfully!")
+	}
 }
