@@ -11,6 +11,7 @@
 
 ## Auth Controller
 - User SignUp :heavy_check_mark:
+	- Send Verification Codo to users' email :heavy_check_mark:
 - User SignIn :heavy_check_mark:
 - User SignOut :heavy_check_mark:
 - User Validate :heavy_check_mark:

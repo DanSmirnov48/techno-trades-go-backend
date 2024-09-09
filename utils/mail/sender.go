@@ -12,11 +12,6 @@ import (
 	"gopkg.in/gomail.v2"
 )
 
-type EmailData struct {
-	Name            string
-	ConfirmationURL string
-}
-
 var host string
 var port int
 var username string
@@ -34,9 +29,10 @@ func init() {
 	password = os.Getenv("EMAIL_PASSWORD")
 }
 
-func SendEmail(recipientEmail string, data EmailData) error {
-	// Load the HTML template file
-	tmpl, err := template.ParseFiles("utils/mail/templates/email_template.html")
+// Generic function to send an email
+func sendEmail(recipientEmail, subject, templateFile string, data interface{}) error {
+	// Parse the template file
+	tmpl, err := template.ParseFiles(templateFile)
 	if err != nil {
 		return err
 	}
@@ -55,7 +51,7 @@ func SendEmail(recipientEmail string, data EmailData) error {
 	// Set the sender, recipient, and subject
 	m.SetHeader("From", "TechnoTrades <"+username+">")
 	m.SetHeader("To", recipientEmail)
-	m.SetHeader("Subject", "Please Confirm Your Email")
+	m.SetHeader("Subject", subject)
 
 	// Set the rendered HTML body
 	m.SetBody("text/html", body.String())

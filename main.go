@@ -11,7 +11,6 @@ import (
 	"github.com/DanSmirnov48/techno-trades-go-backend/database"
 	"github.com/DanSmirnov48/techno-trades-go-backend/middlewares"
 	"github.com/DanSmirnov48/techno-trades-go-backend/routes"
-	"github.com/DanSmirnov48/techno-trades-go-backend/utils/mail"
 )
 
 func main() {
@@ -21,19 +20,6 @@ func main() {
 		if err != nil {
 			log.Fatal("Error loading .env file:", err)
 		}
-	}
-
-	data := mail.EmailData{
-		Name:            "John Doe",
-		ConfirmationURL: "https://github.com/go-gomail/gomail",
-	}
-
-	// Send the email
-	err := mail.SendEmail("", data)
-	if err != nil {
-		log.Fatal(err)
-	} else {
-		log.Println("Styled email sent successfully!")
 	}
 
 	// Connect to the database
