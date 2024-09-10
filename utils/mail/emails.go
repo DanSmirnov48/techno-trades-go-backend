@@ -41,3 +41,25 @@ func SendResetPasswordEmail(recipientEmail, name, token string) error {
 	// Call the generic SendEmail function
 	return sendEmail(recipientEmail, subject, templateFile, data)
 }
+
+// Struct for reset password email data
+type UpdateEmailEmailData struct {
+	Name  string
+	Token string
+}
+
+// Function to send reset password email
+func SendUpdateEmailEmail(recipientEmail, name, token string) error {
+	// Prepare the data
+	data := UpdateEmailEmailData{
+		Name:  name,
+		Token: token,
+	}
+
+	// Template file and subject for reset password email
+	templateFile := "utils/mail/templates/update-email.html"
+	subject := "Update Your Email"
+
+	// Call the generic SendEmail function
+	return sendEmail(recipientEmail, subject, templateFile, data)
+}

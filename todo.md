@@ -7,6 +7,8 @@
 - Create new User :heavy_check_mark:
 - Update User :heavy_check_mark:
 - Delete User by Id :heavy_check_mark:
+- Update Current User's Email :heavy_check_mark:
+	- Email token to user :heavy_check_mark:
 
 
 ## Auth Controller
@@ -19,7 +21,7 @@
 - Protect middleware :heavy_check_mark:
 - Role restricted Route :heavy_check_mark:
 - ForgotPassword :heavy_check_mark:
-	- Email token to user :x:
+	- Email token to user :heavy_check_mark:
 - ResetPassword :heavy_check_mark:
 - Update Password :heavy_check_mark:
 - Route Rate Limiter :heavy_check_mark:

@@ -468,7 +468,10 @@ func GenerateUserEmailChangeVerificationToken(c *fiber.Ctx) error {
 		})
 	}
 
-	// TODO: EMAIL THE TOKEN TO THE USER!!
+	err = mail.SendUpdateEmailEmail(user.Email, user.FirstName, token)
+	if err != nil {
+		log.Println("Failed to send email update email:", err)
+	}
 
 	// Return a success response with the code
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
