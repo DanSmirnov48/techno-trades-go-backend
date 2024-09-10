@@ -32,3 +32,5 @@ vendor/
 
 # SQLite local databese
 test.db
+
+utils/mail/templates/*
