@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"strings"
@@ -97,4 +99,25 @@ func FilteredFields(body map[string]interface{}, allowedFields ...string) map[st
 		}
 	}
 	return filtered
+}
+
+// GenerateRandomToken generates a random token of specified length and case (upper or lower).
+func GenerateRandomToken(length int, uppercase bool) (string, error) {
+	// Generate a byte slice of half the length since each byte represents 2 hex characters.
+	bytes := make([]byte, length/2)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+
+	// Convert the bytes to a hex string.
+	token := hex.EncodeToString(bytes)
+
+	// Convert the token to uppercase if specified.
+	if uppercase {
+		token = strings.ToUpper(token)
+	} else {
+		token = strings.ToLower(token)
+	}
+
+	return token, nil
 }

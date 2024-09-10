@@ -1,12 +1,10 @@
 package models
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
-	"strings"
 	"time"
 
+	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -114,34 +112,30 @@ func (u *User) AfterUpdate(tx *gorm.DB) (err error) {
 	return nil
 }
 
-// CreatePasswordResetVerificationCode generates a password reset code, sets the token and expiration time
+// CreatePasswordResetVerificationToken generates a password reset token and sets the expiration time.
 func (u *User) CreatePasswordResetVerificationToken() (string, error) {
-	// Generate a 4-byte random token
-	bytes := make([]byte, 4)
-	if _, err := rand.Read(bytes); err != nil {
+	// Generate a 4-byte (8 character) uppercase random token.
+	token, err := utils.GenerateRandomToken(8, true)
+	if err != nil {
 		return "", err
 	}
-	token := strings.ToUpper(hex.EncodeToString(bytes))
 
-	// Set the token as the password reset token
+	// Set the token and expiration time.
 	u.PasswordResetToken = token
-
-	// Set the expiration time to 10 minutes from now
 	u.PasswordResetTokenExpires = time.Now().Add(10 * time.Minute)
 
 	return token, nil
 }
 
-// CreatePasswordResetVerificationCode generates a password reset code, sets the token and expiration time
+// CreateEmailUpdateVerificationToken generates an email update verification token.
 func (u *User) CreateEmailUpdateVerificationToken() (string, error) {
-	// Generate a 4-byte random token
-	bytes := make([]byte, 4)
-	if _, err := rand.Read(bytes); err != nil {
+	// Generate a 4-byte (8 character) lowercase random token.
+	token, err := utils.GenerateRandomToken(8, false)
+	if err != nil {
 		return "", err
 	}
-	token := strings.ToUpper(hex.EncodeToString(bytes))
 
-	// Set the token as the password reset token
+	// Set the token.
 	u.EmailUpdateVerificationToken = token
 
 	return token, nil
@@ -149,12 +143,11 @@ func (u *User) CreateEmailUpdateVerificationToken() (string, error) {
 
 // CreateEmailUpdateVerificationToken generates an email update verification token.
 func (u *User) CreateMagicLogInLinkToken() (string, error) {
-	// Generate a 4-byte random token
-	bytes := make([]byte, 32)
-	if _, err := rand.Read(bytes); err != nil {
+	// Generate a 4-byte (8 character) lowercase random token.
+	token, err := utils.GenerateRandomToken(32, false)
+	if err != nil {
 		return "", err
 	}
-	token := strings.ToUpper(hex.EncodeToString(bytes))
 
 	// Set the token and expiration time.
 	u.MagicLogInToken = token
