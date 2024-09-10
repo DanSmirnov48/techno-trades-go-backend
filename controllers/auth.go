@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -74,6 +75,58 @@ func LogIn(c *fiber.Ctx) error {
 		"data": fiber.Map{
 			"user": user,
 		},
+	})
+}
+
+func RequestMagicLink(c *fiber.Ctx) error {
+	// Parse the code from the request body
+	type MagicSignIn struct {
+		Email string `json:"email"`
+	}
+
+	var input MagicSignIn
+	if err := c.BodyParser(&input); err != nil || !validate.IsEmailValid(input.Email) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid request body",
+		})
+	}
+
+	var user models.User
+
+	// Check if user exists and retrieve their password
+	if err := database.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Incorrect email or password"})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error checking user credentials"})
+	}
+
+	// Generate a password reset token
+	token, err := user.CreateMagicLogInLinkToken()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to generate magic login token",
+		})
+	}
+
+	// Save the changes to the database
+	if err := database.DB.Save(&user).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to save user",
+		})
+	}
+
+	clientURL := os.Getenv("CLIENT_URL")
+	magicLink := fmt.Sprintf("%s/login/%s", clientURL, token)
+
+	// Return a success response with the code
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":    "success",
+		"message":   "MagicLink has been sent to your email.",
+		"magicLink": magicLink,
 	})
 }
 

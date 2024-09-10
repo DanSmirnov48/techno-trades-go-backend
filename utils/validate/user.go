@@ -83,7 +83,7 @@ func ParseCreateUserInput(c *fiber.Ctx) (*CreateUserInput, error) {
 		return nil, fmt.Errorf("password is required and must be a non-empty string")
 	}
 
-	if !isEmailValid(email) {
+	if !IsEmailValid(email) {
 		return nil, fmt.Errorf("email is not a valid email address")
 	}
 
@@ -98,7 +98,7 @@ func ParseCreateUserInput(c *fiber.Ctx) (*CreateUserInput, error) {
 	return input, nil
 }
 
-func isEmailValid(email string) bool {
+func IsEmailValid(email string) bool {
 	_, err := mail.ParseAddress(email)
 	return err == nil
 }

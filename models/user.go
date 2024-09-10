@@ -39,6 +39,8 @@ type User struct {
 	EmailUpdateVerificationToken string `gorm:"size:255"`
 	PasswordResetToken           string `gorm:"size:255"`
 	PasswordResetTokenExpires    time.Time
+	MagicLogInToken              string `gorm:"size:255"`
+	MagicLogInTokenExpires       time.Time
 	CreatedAt                    time.Time
 	UpdatedAt                    time.Time
 	DeletedAt                    gorm.DeletedAt `gorm:"index"`
@@ -141,6 +143,22 @@ func (u *User) CreateEmailUpdateVerificationToken() (string, error) {
 
 	// Set the token as the password reset token
 	u.EmailUpdateVerificationToken = token
+
+	return token, nil
+}
+
+// CreateEmailUpdateVerificationToken generates an email update verification token.
+func (u *User) CreateMagicLogInLinkToken() (string, error) {
+	// Generate a 4-byte random token
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	token := strings.ToUpper(hex.EncodeToString(bytes))
+
+	// Set the token and expiration time.
+	u.MagicLogInToken = token
+	u.MagicLogInTokenExpires = time.Now().Add(10 * time.Minute)
 
 	return token, nil
 }
