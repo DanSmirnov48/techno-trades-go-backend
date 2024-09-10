@@ -82,10 +82,10 @@ func SignUp(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).SendString("Could not create user")
 	}
 
-	mail.SendVerificationEmail(
-		user.Email,
-		user.VerificationCode,
-	)
+	err = mail.SendVerificationEmail(user.Email, user.VerificationCode)
+	if err != nil {
+		log.Println("Failed to send account verification email:", err)
+	}
 
 	return c.Status(fiber.StatusCreated).JSON(user)
 }

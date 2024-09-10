@@ -19,3 +19,25 @@ func SendVerificationEmail(recipientEmail string, verificationCode int64) error 
 	// Call the generic sendEmail function
 	return sendEmail(recipientEmail, subject, templateFile, data)
 }
+
+// Struct for reset password email data
+type ResetPasswordEmailData struct {
+	Name  string
+	Token string
+}
+
+// Function to send reset password email
+func SendResetPasswordEmail(recipientEmail, name, token string) error {
+	// Prepare the data
+	data := ResetPasswordEmailData{
+		Name:  name,
+		Token: token,
+	}
+
+	// Template file and subject for reset password email
+	templateFile := "utils/mail/templates/reset-password.html"
+	subject := "Reset Your Password"
+
+	// Call the generic SendEmail function
+	return sendEmail(recipientEmail, subject, templateFile, data)
+}

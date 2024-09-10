@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"github.com/DanSmirnov48/techno-trades-go-backend/database"
 	"github.com/DanSmirnov48/techno-trades-go-backend/models"
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
+	"github.com/DanSmirnov48/techno-trades-go-backend/utils/mail"
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils/validate"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -326,7 +328,10 @@ func ForgotPassword(c *fiber.Ctx) error {
 		})
 	}
 
-	// TODO: EMAIL THE TOKEN TO THE USER!!
+	err = mail.SendResetPasswordEmail(user.Email, user.FirstName, user.PasswordResetToken)
+	if err != nil {
+		log.Println("Failed to send password reset email:", err)
+	}
 
 	// Return a success response with the code
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
