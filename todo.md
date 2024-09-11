@@ -15,6 +15,9 @@
 - User SignUp :heavy_check_mark:
 	- Send Verification Codo to users' email :heavy_check_mark:
 - User SignIn :heavy_check_mark:
+- User Request Magic Link :heavy_check_mark:
+	- Send Magic Link to user's email :x:
+- User MagicLink SignIn :heavy_check_mark:
 - User SignOut :heavy_check_mark:
 - User Validate :heavy_check_mark:
 - User Account Verify :heavy_check_mark:

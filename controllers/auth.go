@@ -122,11 +122,82 @@ func RequestMagicLink(c *fiber.Ctx) error {
 	clientURL := os.Getenv("CLIENT_URL")
 	magicLink := fmt.Sprintf("%s/login/%s", clientURL, token)
 
+	// TODO: EMAIL THE MAGIC LINK TO THE USER
+
 	// Return a success response with the code
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":    "success",
 		"message":   "MagicLink has been sent to your email.",
 		"magicLink": magicLink,
+	})
+}
+
+func LogInWithMagicLink(c *fiber.Ctx) error {
+	token := c.Params("token")
+
+	var user models.User
+
+	// Retrieve the user by PasswordResetToken and check if the token is not expired
+	if err := database.DB.Where("magic_log_in_token = ? AND magic_log_in_token_expires > ?", token, time.Now()).First(&user).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"status":  "error",
+				"message": "Invalid or expired token",
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Error checking user credentials",
+		})
+	}
+
+	// Update the user's password (it will be hashed in the BeforeSave hook)
+	if err := database.DB.Model(&user).Updates(map[string]interface{}{
+		"MagicLogInToken":        nil,
+		"MagicLogInTokenExpires": nil,
+	}).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to update password",
+		})
+	}
+
+	// Create a JWT token
+	accessToken, err := utils.CreateToken(user.ID.String(), "24h")
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error creating token"})
+	}
+
+	// Set the token in a cookie
+	isSecure := false
+	if proto, ok := c.GetReqHeaders()["X-Forwarded-Proto"]; ok {
+		for _, p := range proto {
+			if strings.ToLower(p) == "https" {
+				isSecure = true
+				break
+			}
+		}
+	}
+
+	c.Cookie(&fiber.Cookie{
+		Name:     "accessToken",
+		Value:    accessToken,
+		Expires:  time.Now().Add(24 * time.Hour),
+		HTTPOnly: true,
+		Secure:   isSecure,
+		SameSite: "strict",
+	})
+
+	// Remove password from output
+	user.Password = "" // Don't send the password back
+
+	// Send response
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": "success",
+		"token":  accessToken,
+		"data": fiber.Map{
+			"user": user,
+		},
 	})
 }
 

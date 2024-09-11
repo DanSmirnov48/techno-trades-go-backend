@@ -15,6 +15,7 @@ func RegisterUserRoutes(app *fiber.App) {
 	userRouter.Post("/signup", controllers.SignUp)
 	userRouter.Post("/login", middlewares.RateLimiter(), controllers.LogIn)
 	userRouter.Get("/request-magic-link-login", middlewares.RateLimiter(), controllers.RequestMagicLink)
+	userRouter.Post("/login/:token", middlewares.RateLimiter(), controllers.LogInWithMagicLink)
 	userRouter.Get("/logout", controllers.LogOut)
 	userRouter.Post("/verify-account", controllers.VerifyAccount)
 	userRouter.Get("/validate", controllers.Validate)
