@@ -18,7 +18,7 @@ import (
 
 // LogIn handles the login logic
 func LogIn(c *fiber.Ctx) error {
-	// 1) Parse and validate the login input.
+	// 1) Parse and validate the login input
 	input, err := validate.ParseLoginInput(c)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
@@ -34,48 +34,13 @@ func LogIn(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error checking user credentials"})
 	}
 
-	// 3) Compare the provided password with the stored password using the ComparePassword method
+	// 3) Compare the provided password with the stored password
 	if !user.ComparePassword(input.Password) {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Incorrect email or password"})
 	}
 
-	// 4) Create a JWT token
-	accessToken, err := utils.CreateToken(user.ID.String(), "24h")
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error creating token"})
-	}
-
-	// 5) Set the token in a cookie
-	isSecure := false
-	if proto, ok := c.GetReqHeaders()["X-Forwarded-Proto"]; ok {
-		for _, p := range proto {
-			if strings.ToLower(p) == "https" {
-				isSecure = true
-				break
-			}
-		}
-	}
-
-	c.Cookie(&fiber.Cookie{
-		Name:     "accessToken",
-		Value:    accessToken,
-		Expires:  time.Now().Add(24 * time.Hour),
-		HTTPOnly: true,
-		Secure:   isSecure,
-		SameSite: "strict",
-	})
-
-	// 6) Remove password from output
-	user.Password = "" // Don't send the password back
-
-	// 7) Send response
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status": "success",
-		"token":  accessToken,
-		"data": fiber.Map{
-			"user": user,
-		},
-	})
+	// 4) Use the helper to generate the login response
+	return generateLoginResponse(c, &user)
 }
 
 func RequestMagicLink(c *fiber.Ctx) error {
@@ -132,12 +97,13 @@ func RequestMagicLink(c *fiber.Ctx) error {
 	})
 }
 
+// LogInWithMagicLink handles login using a magic link
 func LogInWithMagicLink(c *fiber.Ctx) error {
 	token := c.Params("token")
 
 	var user models.User
 
-	// Retrieve the user by PasswordResetToken and check if the token is not expired
+	// Retrieve the user by magic log in token and check if the token is not expired
 	if err := database.DB.Where("magic_log_in_token = ? AND magic_log_in_token_expires > ?", token, time.Now()).First(&user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -151,54 +117,19 @@ func LogInWithMagicLink(c *fiber.Ctx) error {
 		})
 	}
 
-	// Update the user's password (it will be hashed in the BeforeSave hook)
+	// Clear the magic link token after use
 	if err := database.DB.Model(&user).Updates(map[string]interface{}{
 		"MagicLogInToken":        nil,
 		"MagicLogInTokenExpires": nil,
 	}).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  "error",
-			"message": "Failed to update password",
+			"message": "Failed to update magic login token",
 		})
 	}
 
-	// Create a JWT token
-	accessToken, err := utils.CreateToken(user.ID.String(), "24h")
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error creating token"})
-	}
-
-	// Set the token in a cookie
-	isSecure := false
-	if proto, ok := c.GetReqHeaders()["X-Forwarded-Proto"]; ok {
-		for _, p := range proto {
-			if strings.ToLower(p) == "https" {
-				isSecure = true
-				break
-			}
-		}
-	}
-
-	c.Cookie(&fiber.Cookie{
-		Name:     "accessToken",
-		Value:    accessToken,
-		Expires:  time.Now().Add(24 * time.Hour),
-		HTTPOnly: true,
-		Secure:   isSecure,
-		SameSite: "strict",
-	})
-
-	// Remove password from output
-	user.Password = "" // Don't send the password back
-
-	// Send response
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status": "success",
-		"token":  accessToken,
-		"data": fiber.Map{
-			"user": user,
-		},
-	})
+	// Use the helper to generate the login response
+	return generateLoginResponse(c, &user)
 }
 
 // LogOut handles the user logout
@@ -658,5 +589,47 @@ func UpdateUserEmail(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": "success",
 		"data":   user,
+	})
+}
+
+// generateLoginResponse creates a JWT token, sets the cookie, and returns the user response
+func generateLoginResponse(c *fiber.Ctx, user *models.User) error {
+	// Create a JWT token
+	accessToken, err := utils.CreateToken(user.ID.String(), "24h")
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error creating token"})
+	}
+
+	// Check if the request is secure (HTTPS)
+	isSecure := false
+	if proto, ok := c.GetReqHeaders()["X-Forwarded-Proto"]; ok {
+		for _, p := range proto {
+			if strings.ToLower(p) == "https" {
+				isSecure = true
+				break
+			}
+		}
+	}
+
+	// Set the token in a cookie
+	c.Cookie(&fiber.Cookie{
+		Name:     "accessToken",
+		Value:    accessToken,
+		Expires:  time.Now().Add(24 * time.Hour),
+		HTTPOnly: true,
+		Secure:   isSecure,
+		SameSite: "strict",
+	})
+
+	// Remove password from the response
+	user.Password = ""
+
+	// Return the response
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": "success",
+		"token":  accessToken,
+		"data": fiber.Map{
+			"user": user,
+		},
 	})
 }
