@@ -39,6 +39,7 @@ type User struct {
 	PasswordResetTokenExpires    time.Time
 	MagicLogInToken              string `gorm:"size:255"`
 	MagicLogInTokenExpires       time.Time
+	Products                     []Product `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE;"` // User can have multiple products
 	CreatedAt                    time.Time
 	UpdatedAt                    time.Time
 	DeletedAt                    gorm.DeletedAt `gorm:"index"`
