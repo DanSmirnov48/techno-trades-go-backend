@@ -45,6 +45,7 @@ func main() {
 
 	// Set up routes
 	routes.RegisterUserRoutes(app)
+	routes.RegisterProductRoutes(app)
 
 	log.Fatal(app.Listen("0.0.0.0:" + port))
 }
