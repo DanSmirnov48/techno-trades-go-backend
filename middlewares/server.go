@@ -4,21 +4,8 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 )
-
-func CorsHandler() fiber.Handler {
-	return cors.New(cors.Config{
-		Next:             nil,
-		AllowOrigins:     "http://localhost:5173",
-		AllowMethods:     "GET,POST,HEAD,PUT,DELETE,PATCH",
-		AllowHeaders:     "Origin,Content-Type,Accept",
-		AllowCredentials: true,
-		ExposeHeaders:    "",
-		MaxAge:           0,
-	})
-}
 
 // RateLimiter is a middleware that applies rate limiting to routes.
 func RateLimiter() fiber.Handler {

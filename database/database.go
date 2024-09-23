@@ -3,8 +3,8 @@ package database
 import (
 	"fmt"
 	"log"
-	"os"
 
+	"github.com/DanSmirnov48/techno-trades-go-backend/config"
 	"github.com/DanSmirnov48/techno-trades-go-backend/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -16,7 +16,19 @@ var DB *gorm.DB
 func ConnectDB() {
 	var err error
 
-	dsn := os.Getenv("POSTGRES_DB")
+	cfg := config.GetConfig()
+
+	dbUrlTemplate := "host=%s port=%s user=%s dbname=%s password=%s"
+
+	dsn := fmt.Sprintf(
+		dbUrlTemplate,
+		cfg.PostgresServer,
+		cfg.PostgresPort,
+		cfg.PostgresUser,
+		cfg.PostgresDB,
+		cfg.PostgresPassword,
+	)
+
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
 	})
