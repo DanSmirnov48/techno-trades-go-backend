@@ -34,3 +34,4 @@ vendor/
 test.db
 
 utils/mail/templates/*
+senders/templates/*

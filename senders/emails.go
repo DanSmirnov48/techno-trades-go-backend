@@ -1,4 +1,46 @@
-package mail
+package senders
+
+import (
+	"bytes"
+	"html/template"
+	"log"
+
+	"github.com/DanSmirnov48/techno-trades-go-backend/config"
+	"gopkg.in/gomail.v2"
+)
+
+func sendEmail(recipientEmail, subject, templateFile string, data interface{}) error {
+	cfg := config.GetConfig()
+
+	// Parse the template file
+	tmpl, err := template.ParseFiles(templateFile)
+	if err != nil {
+		return err
+	}
+
+	// Execute the template with the context and set it as the body of the email
+	var body bytes.Buffer
+	if err := tmpl.Execute(&body, data); err != nil {
+		log.Fatal("Error executing template:", err)
+	}
+
+	// Create a new email message
+	m := gomail.NewMessage()
+	m.SetHeader("From", "TechnoTrades <"+cfg.MailSenderEmail+">")
+	m.SetHeader("To", recipientEmail)
+	m.SetHeader("Subject", subject)
+	m.SetBody("text/html", body.String())
+
+	// Create a new SMTP client
+	d := gomail.NewDialer(cfg.MailSenderHost, cfg.MailSenderPort, cfg.MailSenderEmail, cfg.MailSenderPassword)
+
+	// Send the email
+	if err := d.DialAndSend(m); err != nil {
+		log.Fatal("Error sending email:", err)
+	}
+
+	return nil
+}
 
 // Struct for verification email data
 type VerificationEmailData struct {

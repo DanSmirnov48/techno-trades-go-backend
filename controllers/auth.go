@@ -9,8 +9,8 @@ import (
 
 	"github.com/DanSmirnov48/techno-trades-go-backend/database"
 	"github.com/DanSmirnov48/techno-trades-go-backend/models"
+	"github.com/DanSmirnov48/techno-trades-go-backend/senders"
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
-	"github.com/DanSmirnov48/techno-trades-go-backend/utils/mail"
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils/validate"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -383,7 +383,7 @@ func ForgotPassword(c *fiber.Ctx) error {
 		})
 	}
 
-	err = mail.SendResetPasswordEmail(user.Email, user.FirstName, user.PasswordResetToken)
+	err = senders.SendResetPasswordEmail(user.Email, user.FirstName, user.PasswordResetToken)
 	if err != nil {
 		log.Println("Failed to send password reset email:", err)
 	}
@@ -523,7 +523,7 @@ func GenerateUserEmailChangeVerificationToken(c *fiber.Ctx) error {
 		})
 	}
 
-	err = mail.SendUpdateEmailEmail(user.Email, user.FirstName, token)
+	err = senders.SendUpdateEmailEmail(user.Email, user.FirstName, token)
 	if err != nil {
 		log.Println("Failed to send email update email:", err)
 	}

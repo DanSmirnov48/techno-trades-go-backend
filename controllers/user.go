@@ -9,8 +9,8 @@ import (
 
 	"github.com/DanSmirnov48/techno-trades-go-backend/database"
 	"github.com/DanSmirnov48/techno-trades-go-backend/models"
+	"github.com/DanSmirnov48/techno-trades-go-backend/senders"
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
-	"github.com/DanSmirnov48/techno-trades-go-backend/utils/mail"
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils/validate"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -82,7 +82,7 @@ func SignUp(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).SendString("Could not create user")
 	}
 
-	err = mail.SendVerificationEmail(user.Email, user.VerificationCode)
+	err = senders.SendVerificationEmail(user.Email, user.VerificationCode)
 	if err != nil {
 		log.Println("Failed to send account verification email:", err)
 	}
