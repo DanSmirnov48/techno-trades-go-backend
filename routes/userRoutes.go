@@ -1,50 +1,54 @@
 package routes
 
 import (
-	"github.com/DanSmirnov48/techno-trades-go-backend/controllers"
-	"github.com/DanSmirnov48/techno-trades-go-backend/middlewares"
+	midw "github.com/DanSmirnov48/techno-trades-go-backend/authentication"
+	c "github.com/DanSmirnov48/techno-trades-go-backend/controllers"
 	"github.com/DanSmirnov48/techno-trades-go-backend/models"
+	"gorm.io/gorm"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-func RegisterUserRoutes(app *fiber.App) {
-	userRouter := app.Group("/api/users")
+func RegisterUserRoutes(app *fiber.App, db *gorm.DB) {
+	midw := midw.Middleware{DB: db}
 
-	// User AUTHENTICATION
-	userRouter.Post("/signup", controllers.SignUp)
-	userRouter.Post("/login", middlewares.RateLimiter(), controllers.LogIn)
-	userRouter.Get("/request-magic-link-login", middlewares.RateLimiter(), controllers.RequestMagicLink)
-	userRouter.Post("/login/:token", middlewares.RateLimiter(), controllers.LogInWithMagicLink)
-	userRouter.Get("/logout", controllers.LogOut)
-	userRouter.Post("/verify-account", controllers.VerifyAccount)
-	userRouter.Get("/validate", controllers.Validate)
+	api := app.Group("/api/v1")
 
-	// Password RESET and UPDATE for UNAUTHORIZED users
-	userRouter.Post("/forgot-password", middlewares.RateLimiter(), controllers.ForgotPassword)
-	userRouter.Post("/verify-password-reset-token", controllers.VerifyPasswordResetToken)
-	userRouter.Post("/reset-forgotten-password", controllers.ResetUserPassword)
+	// HealthCheck Route (1)
+	api.Get("/healthcheck", HealthCheck)
 
-	// Profile UPDATE for AUTHORIZED users
-	userRouter.Patch("/update-my-password", middlewares.Protect(), controllers.UpdateUserPassword)
-	userRouter.Patch("/update-me", middlewares.Protect(), controllers.UpdateMe)
-	userRouter.Delete("/deactivate-me", middlewares.Protect(), controllers.DeleteMe)
-	userRouter.Get("/request-email-change-verification-code",
-		middlewares.Protect(),
-		controllers.GenerateUserEmailChangeVerificationToken)
-	userRouter.Patch("/update-my-email", middlewares.Protect(), controllers.UpdateUserEmail)
+	// Auth Routes (7)
+	authRouter := api.Group("/auth")
+	authRouter.Post("/signup", c.SignUp)
+	authRouter.Post("/login", midw.RateLimiter, c.LogIn)
+	authRouter.Get("/request-magic-link-login", midw.RateLimiter, c.RequestMagicLink)
+	authRouter.Post("/login/:token", midw.RateLimiter, c.LogInWithMagicLink)
+	authRouter.Get("/logout", c.LogOut)
+	authRouter.Post("/verify-account", c.VerifyAccount)
+	authRouter.Get("/validate", c.Validate)
+
+	// Password RESET Routes (3) for UNAUTHORIZED users
+	reset := api.Group("/reset")
+	reset.Post("/forgot-password", midw.RateLimiter, c.ForgotPassword)
+	reset.Post("/verify-password-reset-token", c.VerifyPasswordResetToken)
+	reset.Post("/reset-forgotten-password", c.ResetUserPassword)
+
+	// Users profile routes (5) for AUTHORIZED users
+	users := api.Group("/users")
+	users.Patch("/update-my-password", midw.AuthMiddleware, c.UpdateUserPassword)
+	users.Patch("/update-me", midw.AuthMiddleware, c.UpdateMe)
+	users.Delete("/deactivate-me", midw.AuthMiddleware, c.DeleteMe)
+	users.Get("/request-email-change-verification-code", midw.AuthMiddleware, c.GenerateUserEmailChangeVerificationToken)
+	users.Patch("/update-my-email", midw.AuthMiddleware, c.UpdateUserEmail)
 
 	// CURRENT USER PHOTO UPDATE
-	userRouter.Post("/file-upload", middlewares.Protect(), controllers.UploadUserPhoto)
-	userRouter.Get("/file-delete", middlewares.Protect(), controllers.DeleteUserPhoto)
+	users.Post("/file-upload", midw.AuthMiddleware, c.UploadUserPhoto)
+	users.Get("/file-delete", midw.AuthMiddleware, c.DeleteUserPhoto)
 
 	// Get CURRENT AUTHORIZED user
-	userRouter.Get("/me", controllers.GetCurrentUser)
+	users.Get("/me", c.GetCurrentUser)
 
-	userRouter.Get("/:id", controllers.GetUserByParamsID)
+	users.Get("/:id", c.GetUserByParamsID)
 
-	userRouter.Get("/",
-		middlewares.Protect(),
-		middlewares.RestrictTo(models.AdminRole),
-		controllers.GetUsers)
+	users.Get("/", midw.AuthMiddleware, midw.RestrictTo(models.AdminRole), c.GetUsers)
 }
