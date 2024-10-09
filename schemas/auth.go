@@ -41,7 +41,16 @@ type TokensResponseSchema struct {
 	Refresh string       `json:"refresh"`
 }
 
+type MagicLinkResponseSchema struct {
+	Link string `json:"link"`
+}
+
 type LoginResponseSchema struct {
 	ResponseSchema
 	Data TokensResponseSchema `json:"data"`
+}
+
+type MagicLinkLoginResponseSchema struct {
+	ResponseSchema
+	Data MagicLinkResponseSchema `json:"data"`
 }

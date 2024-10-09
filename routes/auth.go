@@ -1,17 +1,23 @@
 package routes
 
 import (
+	"fmt"
+	"time"
+
 	auth "github.com/DanSmirnov48/techno-trades-go-backend/authentication"
+	"github.com/DanSmirnov48/techno-trades-go-backend/config"
 	"github.com/DanSmirnov48/techno-trades-go-backend/controllers"
 	"github.com/DanSmirnov48/techno-trades-go-backend/models"
 	"github.com/DanSmirnov48/techno-trades-go-backend/schemas"
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 var (
 	validator = utils.Validator()
+	cfg       = config.GetConfig()
 )
 
 func (endpoint Endpoint) Login(c *fiber.Ctx) error {
@@ -181,6 +187,76 @@ func (endpoint Endpoint) Refresh(c *fiber.Ctx) error {
 
 	response := schemas.LoginResponseSchema{
 		ResponseSchema: schemas.ResponseSchema{Message: "Tokens refresh successful"}.Init(),
+		Data:           schemas.TokensResponseSchema{User: user, Access: access, Refresh: refresh},
+	}
+	return c.Status(201).JSON(response)
+}
+
+func (endpoint Endpoint) SendMagicLink(c *fiber.Ctx) error {
+	db := endpoint.DB
+	emailSchema := schemas.EmailRequestSchema{}
+
+	// Validate request
+	if errCode, errData := DecodeJSONBody(c, &emailSchema); errData != nil {
+		return c.Status(errCode).JSON(errData)
+	}
+	if err := validator.Validate(emailSchema); err != nil {
+		return c.Status(422).JSON(err)
+	}
+
+	user, _ := controllers.GetUserByEmail(db, emailSchema.Email)
+	if user == nil {
+		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INCORRECT_EMAIL, "Incorrect Email"))
+	}
+
+	token, err := user.CreateMagicLogInLinkToken()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to generate magic login token",
+		})
+	}
+
+	db.Save(&user)
+
+	magicLink := fmt.Sprintf("%s/login/%s", cfg.FrontendURL, token)
+
+	response := schemas.MagicLinkLoginResponseSchema{
+		ResponseSchema: schemas.ResponseSchema{Message: "MagicLink has been sent"}.Init(),
+		Data:           schemas.MagicLinkResponseSchema{Link: magicLink},
+	}
+	return c.Status(200).JSON(response)
+}
+
+func (endpoint Endpoint) MagicLinkLogin(c *fiber.Ctx) error {
+	db := endpoint.DB
+
+	token := c.Params("token")
+
+	var user *models.User
+
+	if err := db.Where("magic_log_in_token = ? AND magic_log_in_token_expires > ?", token, time.Now()).First(&user).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return c.Status(401).JSON(utils.RequestErr(utils.ERR_INVALID_TOKEN, "Refresh token is invalid or expired"))
+		}
+		return c.Status(401).JSON(utils.RequestErr(utils.ERR_INVALID_CREDENTIALS, "Invalid Credentials"))
+	}
+
+	db.Model(&user).Updates(map[string]interface{}{
+		"MagicLogInToken":        nil,
+		"MagicLogInTokenExpires": nil,
+	})
+
+	// Create Auth Tokens
+	access := auth.GenerateAccessToken(user.ID)
+	refresh := auth.GenerateRefreshToken()
+
+	// Set the access token and refresh token cookies
+	auth.SetAuthCookie(c, auth.AccessToken, access)
+	auth.SetAuthCookie(c, auth.RefreshToken, refresh)
+
+	response := schemas.LoginResponseSchema{
+		ResponseSchema: schemas.ResponseSchema{Message: "Login successful"}.Init(),
 		Data:           schemas.TokensResponseSchema{User: user, Access: access, Refresh: refresh},
 	}
 	return c.Status(201).JSON(response)
