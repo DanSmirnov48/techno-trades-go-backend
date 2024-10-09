@@ -6,6 +6,7 @@ import (
 
 	"github.com/DanSmirnov48/techno-trades-go-backend/config"
 	"github.com/DanSmirnov48/techno-trades-go-backend/models"
+	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -64,4 +65,39 @@ func DecodeAccessToken(token string, db *gorm.DB) (*models.User, *string) {
 		return nil, &tokenErr
 	}
 	return user, nil
+}
+
+func SetAuthCookie(c *fiber.Ctx, cookieName string, token string, expirationMinutes int) {
+	// Determine if the request is secure (HTTPS)
+	isSecure := false
+	if proto, ok := c.GetReqHeaders()["X-Forwarded-Proto"]; ok {
+		for _, p := range proto {
+			if p == "https" {
+				isSecure = true
+				break
+			}
+		}
+	}
+
+	// Set the token in a cookie
+	c.Cookie(&fiber.Cookie{
+		Name:     cookieName,
+		Value:    token,
+		Expires:  time.Now().Add(time.Duration(expirationMinutes) * time.Minute),
+		HTTPOnly: true,     // Prevent access to the cookie via JavaScript
+		Secure:   isSecure, // Only send cookie over HTTPS
+		SameSite: "Strict", // CSRF protection
+	})
+}
+
+func RemoveAuthCookie(c *fiber.Ctx, cookieName string) {
+	// Set the cookie with an expiration time in the past to remove it
+	c.Cookie(&fiber.Cookie{
+		Name:     cookieName,
+		Value:    "",
+		Expires:  time.Now().Add(-time.Hour), // Set to a time in the past to expire the cookie
+		HTTPOnly: true,                       // Match the settings of the original cookie
+		Secure:   false,                      // Update this if your original cookie is secure
+		SameSite: "Strict",                   // CSRF protection
+	})
 }
