@@ -24,7 +24,7 @@ func RegisterUserRoutes(app *fiber.App, db *gorm.DB) {
 
 	// Auth Routes (7)
 	authRouter := api.Group("/auth")
-	authRouter.Post("/signup", c.SignUp)
+	authRouter.Post("/signup", endpoint.Register)
 	authRouter.Post("/login", midw.RateLimiter, endpoint.Login)
 	authRouter.Get("/request-magic-link-login", midw.RateLimiter, c.RequestMagicLink)
 	authRouter.Post("/login/:token", midw.RateLimiter, c.LogInWithMagicLink)

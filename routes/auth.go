@@ -1,11 +1,13 @@
 package routes
 
 import (
-	"github.com/DanSmirnov48/techno-trades-go-backend/authentication"
+	auth "github.com/DanSmirnov48/techno-trades-go-backend/authentication"
 	"github.com/DanSmirnov48/techno-trades-go-backend/controllers"
+	"github.com/DanSmirnov48/techno-trades-go-backend/models"
 	"github.com/DanSmirnov48/techno-trades-go-backend/schemas"
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 )
 
 var (
@@ -30,10 +32,10 @@ func (endpoint Endpoint) Login(c *fiber.Ctx) error {
 	}
 
 	// Generate access token
-	access := authentication.GenerateAccessToken(user.ID)
+	access := auth.GenerateAccessToken(user.ID)
 
 	// Set the access token in a cookie
-	authentication.SetAuthCookie(c, "accessToken", access, 60)
+	auth.SetAuthCookie(c, "accessToken", access, 60)
 
 	response := schemas.LoginResponseSchema{
 		ResponseSchema: schemas.ResponseSchema{Message: "Login successful"}.Init(),
@@ -44,8 +46,48 @@ func (endpoint Endpoint) Login(c *fiber.Ctx) error {
 
 func (endpoint Endpoint) Logout(c *fiber.Ctx) error {
 	// Remove the access token cookie
-	authentication.RemoveAuthCookie(c, "accessToken")
+	auth.RemoveAuthCookie(c, "accessToken")
 
 	response := schemas.ResponseSchema{Message: "Logout successful"}.Init()
 	return c.Status(200).JSON(response)
+}
+
+func (endpoint Endpoint) Register(c *fiber.Ctx) error {
+	db := endpoint.DB
+	user := schemas.RegisterUser{}
+
+	// Validate request
+	if errCode, errData := DecodeJSONBody(c, &user); errData != nil {
+		return c.Status(errCode).JSON(errData)
+	}
+	if err := validator.Validate(user); err != nil {
+		return c.Status(422).JSON(err)
+	}
+
+	userByEmail, _ := controllers.GetUserByEmail(db, user.Email)
+	if userByEmail != nil {
+		data := map[string]string{
+			"email": "Email already registered!",
+		}
+		return c.Status(422).JSON(utils.RequestErr(utils.ERR_INVALID_ENTRY, "Invalid Entry", data))
+	}
+
+	newUser := models.User{
+		ID:               uuid.New(),
+		FirstName:        user.FirstName,
+		LastName:         user.LastName,
+		Email:            user.Email,
+		Password:         user.Password,
+		VerificationCode: utils.GetRandomInt(6),
+	}
+
+	if err := db.Create(&newUser).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString("Could not create user")
+	}
+
+	response := schemas.RegisterResponseSchema{
+		ResponseSchema: schemas.ResponseSchema{Message: "Registration successful"}.Init(),
+		Data:           schemas.EmailRequestSchema{Email: newUser.Email},
+	}
+	return c.Status(201).JSON(response)
 }
