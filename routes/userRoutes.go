@@ -29,7 +29,7 @@ func RegisterUserRoutes(app *fiber.App, db *gorm.DB) {
 	authRouter.Get("/request-magic-link-login", midw.RateLimiter, c.RequestMagicLink)
 	authRouter.Post("/login/:token", midw.RateLimiter, c.LogInWithMagicLink)
 	authRouter.Get("/logout", endpoint.Logout)
-	authRouter.Post("/verify-account", c.VerifyAccount)
+	authRouter.Post("/verify-account", endpoint.VerifyAccount)
 	authRouter.Get("/validate", c.Validate)
 
 	// Password RESET Routes (3) for UNAUTHORIZED users

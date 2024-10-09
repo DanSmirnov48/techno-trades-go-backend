@@ -91,3 +91,33 @@ func (endpoint Endpoint) Register(c *fiber.Ctx) error {
 	}
 	return c.Status(201).JSON(response)
 }
+
+func (endpoint Endpoint) VerifyAccount(c *fiber.Ctx) error {
+	db := endpoint.DB
+	input := schemas.VerifyAccountRequestSchema{}
+
+	// Validate request
+	if errCode, errData := DecodeJSONBody(c, &input); errData != nil {
+		return c.Status(errCode).JSON(errData)
+	}
+	if err := validator.Validate(input); err != nil {
+		return c.Status(422).JSON(err)
+	}
+
+	user, _ := controllers.GetUserByEmail(db, input.Email)
+	if user == nil {
+		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INCORRECT_EMAIL, "Incorrect Email"))
+	}
+
+	if user.VerificationCode != input.VerificationCode {
+		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INCORRECT_OTP, "Incorrect Otp"))
+	}
+
+	user.Verified = true
+	user.VerificationCode = 0
+
+	db.Save(&user)
+
+	response := schemas.ResponseSchema{Message: "Account verification successful"}.Init()
+	return c.Status(200).JSON(response)
+}
