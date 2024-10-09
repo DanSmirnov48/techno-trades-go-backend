@@ -125,3 +125,63 @@ func (endpoint Endpoint) VerifyAccount(c *fiber.Ctx) error {
 	response := schemas.ResponseSchema{Message: "Account verification successful"}.Init()
 	return c.Status(200).JSON(response)
 }
+
+func (endpoint Endpoint) ValidateMe(c *fiber.Ctx) error {
+	db := endpoint.DB
+
+	accessToken := c.Cookies("accessToken")
+
+	if accessToken == "" {
+		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INVALID_TOKEN, "Invalid Token"))
+	}
+
+	user, err := auth.DecodeAccessToken(accessToken, db)
+	if err != nil {
+		return c.Status(401).JSON(utils.RequestErr(utils.ERR_INVALID_CREDENTIALS, "Invalid Credentials"))
+	}
+
+	c.Locals("user", user)
+
+	response := schemas.LoginResponseSchema{
+		ResponseSchema: schemas.ResponseSchema{Message: "Validate successful"}.Init(),
+		Data:           schemas.TokensResponseSchema{User: user, Access: accessToken},
+	}
+
+	return c.Status(200).JSON(response)
+}
+
+func (endpoint Endpoint) Refresh(c *fiber.Ctx) error {
+	refreshTokenSchema := schemas.RefreshTokenSchema{}
+
+	user, ok := c.Locals("user").(*models.User)
+	if !ok || user == nil {
+		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNAUTHORIZED_USER, "Unauthorized Access"))
+	}
+
+	// Validate request
+	if errCode, errData := DecodeJSONBody(c, &refreshTokenSchema); errData != nil {
+		return c.Status(errCode).JSON(errData)
+	}
+	if err := validator.Validate(refreshTokenSchema); err != nil {
+		return c.Status(422).JSON(err)
+	}
+
+	token := refreshTokenSchema.Refresh
+	if !auth.DecodeRefreshToken(token) {
+		return c.Status(401).JSON(utils.RequestErr(utils.ERR_INVALID_TOKEN, "Refresh token is invalid or expired"))
+	}
+
+	// Create Auth Tokens
+	access := auth.GenerateAccessToken(user.ID)
+	refresh := auth.GenerateRefreshToken()
+
+	// Set the access token and refresh token cookies
+	auth.SetAuthCookie(c, auth.AccessToken, access)
+	auth.SetAuthCookie(c, auth.RefreshToken, refresh)
+
+	response := schemas.LoginResponseSchema{
+		ResponseSchema: schemas.ResponseSchema{Message: "Tokens refresh successful"}.Init(),
+		Data:           schemas.TokensResponseSchema{User: user, Access: access, Refresh: refresh},
+	}
+	return c.Status(201).JSON(response)
+}

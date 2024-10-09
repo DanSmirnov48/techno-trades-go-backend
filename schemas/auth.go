@@ -25,6 +25,10 @@ type VerifyAccountRequestSchema struct {
 	VerificationCode int64  `json:"verification_code" validate:"required" example:"123456"`
 }
 
+type RefreshTokenSchema struct {
+	Refresh string `json:"refresh" validate:"required" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6InNpbXBsZWlkIiwiZXhwIjoxMjU3ODk0MzAwfQ.Ys_jP70xdxch32hFECfJQuvpvU5_IiTIN2pJJv68EqQ"`
+}
+
 // RESPONSE BODY SCHEMAS
 type RegisterResponseSchema struct {
 	ResponseSchema
