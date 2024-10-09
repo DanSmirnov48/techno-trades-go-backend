@@ -9,8 +9,13 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+type Endpoint struct {
+	DB *gorm.DB
+}
+
 func RegisterUserRoutes(app *fiber.App, db *gorm.DB) {
 	midw := midw.Middleware{DB: db}
+	endpoint := Endpoint{DB: db}
 
 	api := app.Group("/api/v1")
 
@@ -20,7 +25,7 @@ func RegisterUserRoutes(app *fiber.App, db *gorm.DB) {
 	// Auth Routes (7)
 	authRouter := api.Group("/auth")
 	authRouter.Post("/signup", c.SignUp)
-	authRouter.Post("/login", midw.RateLimiter, c.LogIn)
+	authRouter.Post("/login", midw.RateLimiter, endpoint.Login)
 	authRouter.Get("/request-magic-link-login", midw.RateLimiter, c.RequestMagicLink)
 	authRouter.Post("/login/:token", midw.RateLimiter, c.LogInWithMagicLink)
 	authRouter.Get("/logout", c.LogOut)

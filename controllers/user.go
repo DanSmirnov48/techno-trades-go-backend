@@ -44,6 +44,17 @@ func GetUserByID(db *gorm.DB, userID string) (*models.User, *fiber.Error) {
 	return &user, nil
 }
 
+func GetUserByEmail(db *gorm.DB, email string) (*models.User, *fiber.Error) {
+	var user models.User
+	if err := db.First(&user, "email = ?", email).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fiber.NewError(fiber.StatusNotFound, "User not found")
+		}
+		return nil, fiber.NewError(fiber.StatusInternalServerError, "Database error")
+	}
+	return &user, nil
+}
+
 func GetUserByParamsID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	user, err := GetUserByID(database.DB, id)

@@ -19,7 +19,7 @@ type AccessTokenPayload struct {
 	jwt.RegisteredClaims
 }
 
-func GenerateAccessToken(userId uuid.UUID, userName string) string {
+func GenerateAccessToken(userId uuid.UUID) string {
 	expirationTime := time.Now().Add(time.Duration(cfg.AccessTokenExpireMinutes) * time.Minute)
 	payload := AccessTokenPayload{
 		UserId: userId,
