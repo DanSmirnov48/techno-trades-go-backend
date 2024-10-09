@@ -32,8 +32,9 @@ type RegisterResponseSchema struct {
 }
 
 type TokensResponseSchema struct {
-	User   *models.User `json:"user"`
-	Access string       `json:"access"`
+	User    *models.User `json:"user"`
+	Access  string       `json:"access"`
+	Refresh string       `json:"refresh"`
 }
 
 type LoginResponseSchema struct {

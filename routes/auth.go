@@ -25,28 +25,32 @@ func (endpoint Endpoint) Login(c *fiber.Ctx) error {
 	if err := validator.Validate(userLoginSchema); err != nil {
 		return c.Status(422).JSON(err)
 	}
+
 	// Check if the user exists and validate password
 	user, _ := controllers.GetUserByEmail(db, userLoginSchema.Email)
 	if user == nil || !user.ComparePassword(userLoginSchema.Password) {
 		return c.Status(401).JSON(utils.RequestErr(utils.ERR_INVALID_CREDENTIALS, "Invalid Credentials"))
 	}
 
-	// Generate access token
+	// Create Auth Tokens
 	access := auth.GenerateAccessToken(user.ID)
+	refresh := auth.GenerateRefreshToken()
 
-	// Set the access token in a cookie
-	auth.SetAuthCookie(c, "accessToken", access, 60)
+	// Set the access token and refresh token cookies
+	auth.SetAuthCookie(c, auth.AccessToken, access)
+	auth.SetAuthCookie(c, auth.RefreshToken, refresh)
 
 	response := schemas.LoginResponseSchema{
 		ResponseSchema: schemas.ResponseSchema{Message: "Login successful"}.Init(),
-		Data:           schemas.TokensResponseSchema{User: user, Access: access},
+		Data:           schemas.TokensResponseSchema{User: user, Access: access, Refresh: refresh},
 	}
 	return c.Status(201).JSON(response)
 }
 
 func (endpoint Endpoint) Logout(c *fiber.Ctx) error {
 	// Remove the access token cookie
-	auth.RemoveAuthCookie(c, "accessToken")
+	auth.RemoveAuthCookie(c, auth.AccessToken)
+	auth.RemoveAuthCookie(c, auth.RefreshToken)
 
 	response := schemas.ResponseSchema{Message: "Logout successful"}.Init()
 	return c.Status(200).JSON(response)
