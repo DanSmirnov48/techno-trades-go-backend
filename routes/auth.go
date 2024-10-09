@@ -3,22 +3,29 @@ package routes
 import (
 	"github.com/DanSmirnov48/techno-trades-go-backend/authentication"
 	"github.com/DanSmirnov48/techno-trades-go-backend/controllers"
-	"github.com/DanSmirnov48/techno-trades-go-backend/database"
 	"github.com/DanSmirnov48/techno-trades-go-backend/schemas"
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
-	"github.com/DanSmirnov48/techno-trades-go-backend/utils/validate"
 	"github.com/gofiber/fiber/v2"
 )
 
-func (endpoint Endpoint) Login(c *fiber.Ctx) error {
-	input, err := validate.ParseLoginInput(c)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
-	}
+var (
+	validator = utils.Validator()
+)
 
+func (endpoint Endpoint) Login(c *fiber.Ctx) error {
+	db := endpoint.DB
+	userLoginSchema := schemas.LoginSchema{}
+
+	// Validate request
+	if errCode, errData := DecodeJSONBody(c, &userLoginSchema); errData != nil {
+		return c.Status(errCode).JSON(errData)
+	}
+	if err := validator.Validate(userLoginSchema); err != nil {
+		return c.Status(422).JSON(err)
+	}
 	// Check if the user exists and validate password
-	user, err := controllers.GetUserByEmail(database.DB, input.Email)
-	if user == nil || !user.ComparePassword(input.Password) {
+	user, _ := controllers.GetUserByEmail(db, userLoginSchema.Email)
+	if user == nil || !user.ComparePassword(userLoginSchema.Password) {
 		return c.Status(401).JSON(utils.RequestErr(utils.ERR_INVALID_CREDENTIALS, "Invalid Credentials"))
 	}
 
