@@ -54,6 +54,14 @@ func (mid Middleware) RateLimiter(c *fiber.Ctx) error {
 	})(c)
 }
 
+func (mid Middleware) Admin(c *fiber.Ctx) error {
+	user, ok := c.Locals("user").(*models.User)
+	if !ok || user == nil || user.Role == models.UserRole {
+		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNAUTHORIZED_USER, "Unauthorized Access"))
+	}
+	return c.Next()
+}
+
 func (mid Middleware) RestrictTo(roles ...models.Role) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		user, ok := c.Locals("user").(*models.User)

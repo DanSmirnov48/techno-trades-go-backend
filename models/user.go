@@ -45,13 +45,11 @@ type User struct {
 	DeletedAt                    gorm.DeletedAt `gorm:"index"`
 }
 
-// ComparePassword compares the hashed password with a plain password
 func (u *User) ComparePassword(plainPassword string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(plainPassword))
 	return err == nil
 }
 
-// BeforeCreate is a GORM hook that runs before a User is created
 func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
 	u.ID = uuid.New()
 	u.CreatedAt = time.Now()
@@ -69,29 +67,6 @@ func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
 	return
 }
 
-// AfterCreate is a GORM hook that runs after a User is created
-func (u *User) AfterCreate(tx *gorm.DB) (err error) {
-	// Log the details of the created user
-	fmt.Println("Running AfterCreate function.")
-
-	return
-}
-
-func (u *User) BeforeDelete(tx *gorm.DB) (err error) {
-	// Log the details of the user to be deleted
-	fmt.Println("Running BeforeDelete function.")
-
-	return
-}
-
-func (u *User) AfterDelete(tx *gorm.DB) (err error) {
-	// Log the details of the deleted user
-	fmt.Println("Running AfterDelete function.")
-
-	return
-}
-
-// BeforeUpdate is a GORM hook that runs before saving the User model
 func (u *User) BeforeUpdate(tx *gorm.DB) (err error) {
 	fmt.Println("Running BeforeUpdate function.")
 
@@ -105,15 +80,6 @@ func (u *User) BeforeUpdate(tx *gorm.DB) (err error) {
 	return nil
 }
 
-// AfterUpdate is a GORM hook that runs before saving the User model
-func (u *User) AfterUpdate(tx *gorm.DB) (err error) {
-
-	fmt.Println("Running AfterUpdate function.")
-
-	return nil
-}
-
-// CreatePasswordResetVerificationToken generates a password reset token and sets the expiration time.
 func (u *User) CreatePasswordResetVerificationToken() (string, error) {
 	// Generate a 4-byte (8 character) uppercase random token.
 	token, err := utils.GenerateRandomToken(8, true)
@@ -128,9 +94,7 @@ func (u *User) CreatePasswordResetVerificationToken() (string, error) {
 	return token, nil
 }
 
-// CreateEmailUpdateVerificationToken generates an email update verification token.
 func (u *User) CreateEmailUpdateVerificationToken() (string, error) {
-	// Generate a 4-byte (8 character) lowercase random token.
 	token, err := utils.GenerateRandomToken(8, false)
 	if err != nil {
 		return "", err
@@ -142,9 +106,7 @@ func (u *User) CreateEmailUpdateVerificationToken() (string, error) {
 	return token, nil
 }
 
-// CreateEmailUpdateVerificationToken generates an email update verification token.
 func (u *User) CreateMagicLogInLinkToken() (string, error) {
-	// Generate a 4-byte (8 character) lowercase random token.
 	token, err := utils.GenerateRandomToken(32, false)
 	if err != nil {
 		return "", err
