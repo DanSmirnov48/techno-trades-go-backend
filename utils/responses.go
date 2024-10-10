@@ -33,6 +33,7 @@ var ERR_INVALID_PAGE = "invalid_page"
 var ERR_INVALID_VALUE = "invalid_value"
 var ERR_NOT_ALLOWED = "not_allowed"
 var ERR_INVALID_DATA_TYPE = "invalid_data_type"
+var ERR_REQUEST_LIMIT = "request_limit_hit"
 
 func RequestErr(code string, message string, opts ...map[string]string) ErrorResponse {
 	var data *map[string]string

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/DanSmirnov48/techno-trades-go-backend/models"
+	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"gorm.io/gorm"
@@ -48,10 +49,7 @@ func (mid Middleware) RateLimiter(c *fiber.Ctx) error {
 		Expiration: 1 * time.Minute, // Per 1 minute
 		// Customize the response when limit is reached
 		LimitReached: func(c *fiber.Ctx) error {
-			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
-				"status":  "error",
-				"message": "Too many requests. Please try again later.",
-			})
+			return c.Status(429).JSON(utils.RequestErr(utils.ERR_REQUEST_LIMIT, "Too many requests"))
 		},
 	})(c)
 }
@@ -60,10 +58,7 @@ func (mid Middleware) RestrictTo(roles ...models.Role) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		user, ok := c.Locals("user").(*models.User)
 		if !ok || user == nil {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"status":  "error",
-				"message": "User information is missing. You do not have permission to perform this action.",
-			})
+			return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNAUTHORIZED_USER, "Unauthorized Access"))
 		}
 
 		// Check if the user's role is in the allowed roles
@@ -76,13 +71,9 @@ func (mid Middleware) RestrictTo(roles ...models.Role) fiber.Handler {
 		}
 
 		if !hasPermission {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"status":  "error",
-				"message": "You do not have permission to perform this action.",
-			})
+			return c.Status(401).JSON(utils.RequestErr(utils.ERR_INVALID_AUTH, "Unauthorized Access"))
 		}
 
-		// User has the required role, proceed to the next handler
 		return c.Next()
 	}
 }

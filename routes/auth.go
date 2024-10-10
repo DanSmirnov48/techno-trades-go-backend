@@ -13,6 +13,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var (
@@ -92,7 +93,7 @@ func (endpoint Endpoint) Register(c *fiber.Ctx) error {
 	}
 
 	if err := db.Create(&newUser).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString("Could not create user")
+		return c.Status(500).JSON(utils.RequestErr(utils.ERR_NETWORK_FAILURE, "Could not create user"))
 	}
 
 	response := schemas.RegisterResponseSchema{
@@ -119,14 +120,22 @@ func (endpoint Endpoint) VerifyAccount(c *fiber.Ctx) error {
 		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INCORRECT_EMAIL, "Incorrect Email"))
 	}
 
+	if user.Verified {
+		return c.Status(200).JSON(schemas.ResponseSchema{Message: "Email already verified"}.Init())
+	}
+
 	if user.VerificationCode != input.VerificationCode {
 		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INCORRECT_OTP, "Incorrect Otp"))
 	}
 
-	user.Verified = true
-	user.VerificationCode = 0
-
-	db.Save(&user)
+	if err := db.Model(&user).
+		Clauses(clause.Returning{}).
+		Updates(map[string]interface{}{
+			"verified":          true,
+			"verification_code": nil,
+		}).Error; err != nil {
+		return c.Status(404).JSON(utils.RequestErr(utils.ERR_NETWORK_FAILURE, "Failed to update user information"))
+	}
 
 	response := schemas.ResponseSchema{Message: "Account verification successful"}.Init()
 	return c.Status(200).JSON(response)
@@ -206,15 +215,16 @@ func (endpoint Endpoint) SendMagicLink(c *fiber.Ctx) error {
 
 	user, _ := controllers.GetUserByEmail(db, emailSchema.Email)
 	if user == nil {
-		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INCORRECT_EMAIL, "Incorrect Email"))
+		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INVALID_OWNER, "User not found"))
+	}
+
+	if !user.Verified {
+		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNVERIFIED_USER, "Verify your email first"))
 	}
 
 	token, err := user.CreateMagicLogInLinkToken()
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Failed to generate magic login token",
-		})
+		return c.Status(500).JSON(utils.RequestErr(utils.ERR_NETWORK_FAILURE, "Failed to generate magic login token"))
 	}
 
 	db.Save(&user)
@@ -240,6 +250,10 @@ func (endpoint Endpoint) MagicLinkLogin(c *fiber.Ctx) error {
 			return c.Status(401).JSON(utils.RequestErr(utils.ERR_INVALID_TOKEN, "Refresh token is invalid or expired"))
 		}
 		return c.Status(401).JSON(utils.RequestErr(utils.ERR_INVALID_CREDENTIALS, "Invalid Credentials"))
+	}
+
+	if !user.Verified {
+		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNVERIFIED_USER, "Verify your email first"))
 	}
 
 	db.Model(&user).Updates(map[string]interface{}{
