@@ -53,7 +53,10 @@ func (u *User) ComparePassword(plainPassword string) bool {
 func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
 	u.ID = uuid.New()
 	u.CreatedAt = time.Now()
-	u.Role = UserRole
+
+	if u.Role == "" {
+		u.Role = UserRole
+	}
 
 	// Hash the password before storing it
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
