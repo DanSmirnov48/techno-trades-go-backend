@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/DanSmirnov48/techno-trades-go-backend/config"
+	"github.com/DanSmirnov48/techno-trades-go-backend/models"
 	"github.com/DanSmirnov48/techno-trades-go-backend/routes"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/assert"
@@ -29,7 +30,7 @@ func SetupTestDatabase() *gorm.DB {
 		cfg.PostgresServer,
 		cfg.PostgresPort,
 		cfg.PostgresUser,
-		cfg.PostgresDB,
+		cfg.TestPostgresDB,
 		cfg.PostgresPassword,
 	)
 
@@ -39,8 +40,21 @@ func SetupTestDatabase() *gorm.DB {
 	}
 
 	fmt.Println("Database connection established")
-
 	return DB
+}
+
+func DropData(db *gorm.DB) {
+	if err := db.Migrator().DropTable(&models.User{}); err != nil {
+		log.Fatalf("Failed to drop table: %v", err)
+	}
+	log.Println("Test tables dropped successfully.")
+}
+
+func CreateTables(db *gorm.DB) {
+	if err := db.AutoMigrate(&models.User{}); err != nil {
+		log.Fatalf("Failed to create tables: %v", err)
+	}
+	log.Println("Test tables created successfully.")
 }
 
 func CloseTestDatabase(db *gorm.DB) {
@@ -57,6 +71,8 @@ func Setup(t *testing.T, app *fiber.App) *gorm.DB {
 	// Set up the test database
 	db := SetupTestDatabase()
 	routes.RegisterUserRoutes(app, db)
+	DropData(db)
+	CreateTables(db)
 	return db
 }
 
