@@ -24,20 +24,20 @@ func RegisterUserRoutes(app *fiber.App, db *gorm.DB) {
 
 	// Auth Routes (7)
 	authRouter := api.Group("/auth")
-	authRouter.Post("/signup", endpoint.Register)
+	authRouter.Post("/register", endpoint.Register)
 	authRouter.Post("/login", midw.RateLimiter, endpoint.Login)
 	authRouter.Get("/send-magic-link", midw.RateLimiter, endpoint.SendMagicLink)
 	authRouter.Post("/login/:token", midw.RateLimiter, endpoint.MagicLinkLogin)
 	authRouter.Get("/logout", endpoint.Logout)
 	authRouter.Post("/verify-account", endpoint.VerifyAccount)
 	authRouter.Get("/validate", endpoint.ValidateMe)
-	authRouter.Get("/refresh", midw.AuthMiddleware, endpoint.Refresh)
+	authRouter.Post("/refresh", midw.AuthMiddleware, endpoint.Refresh)
 
 	// Password RESET Routes (3) for UNAUTHORIZED users
 	reset := api.Group("/reset")
-	reset.Post("/forgot-password", midw.RateLimiter, c.ForgotPassword)
-	reset.Post("/verify-password-reset-token", c.VerifyPasswordResetToken)
-	reset.Post("/reset-forgotten-password", c.ResetUserPassword)
+	reset.Post("/forgot-password", midw.RateLimiter, endpoint.SendForgotPasswordOtp)
+	reset.Post("/verify-password-reset-token", endpoint.VerifyForottenPasswordResetToken)
+	reset.Post("/reset-forgotten-password", endpoint.ResetUserForgottenPassword)
 
 	// Users profile routes (5) for AUTHORIZED users
 	users := api.Group("/users")

@@ -1,6 +1,8 @@
 package managers
 
 import (
+	"fmt"
+	"log"
 	"time"
 
 	"github.com/DanSmirnov48/techno-trades-go-backend/models"
@@ -113,4 +115,13 @@ func (obj UserManager) ClearMagicLogin(db *gorm.DB, user *models.User) {
 		"MagicLogInToken":        nil,
 		"MagicLogInTokenExpires": nil,
 	})
+}
+
+func (obj UserManager) DropData(db *gorm.DB) error {
+	// Use the GORM Migrator to drop the User table
+	if err := db.Migrator().DropTable(&models.User{}); err != nil {
+		return fmt.Errorf("failed to drop user table: %w", err)
+	}
+	log.Println("User table dropped successfully.")
+	return nil
 }
