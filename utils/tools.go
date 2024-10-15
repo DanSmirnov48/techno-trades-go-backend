@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"encoding/hex"
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -50,4 +52,36 @@ func ParseUUID(input string) (*uuid.UUID, *ErrorResponse) {
 		return nil, &errData
 	}
 	return &uuidVal, nil
+}
+
+// FilteredFields filters the fields that are allowed to be updated.
+func FilteredFields(body map[string]interface{}, allowedFields ...string) map[string]interface{} {
+	filtered := make(map[string]interface{})
+	for _, field := range allowedFields {
+		if value, exists := body[field]; exists {
+			filtered[field] = value
+		}
+	}
+	return filtered
+}
+
+// GenerateRandomToken generates a random token of specified length and case (upper or lower).
+func GenerateRandomToken(length int, uppercase bool) (string, error) {
+	// Generate a byte slice of half the length since each byte represents 2 hex characters.
+	bytes := make([]byte, length/2)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+
+	// Convert the bytes to a hex string.
+	token := hex.EncodeToString(bytes)
+
+	// Convert the token to uppercase if specified.
+	if uppercase {
+		token = strings.ToUpper(token)
+	} else {
+		token = strings.ToLower(token)
+	}
+
+	return token, nil
 }
