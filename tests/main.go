@@ -70,7 +70,7 @@ func CloseTestDatabase(db *gorm.DB) {
 func Setup(t *testing.T, app *fiber.App) *gorm.DB {
 	// Set up the test database
 	db := SetupTestDatabase()
-	routes.RegisterUserRoutes(app, db)
+	routes.SetupRoutes(app, db)
 	DropData(db)
 	CreateTables(db)
 	return db

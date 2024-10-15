@@ -11,7 +11,7 @@ type Endpoint struct {
 	DB *gorm.DB
 }
 
-func RegisterUserRoutes(app *fiber.App, db *gorm.DB) {
+func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	midw := midw.Middleware{DB: db}
 	endpoint := Endpoint{DB: db}
 

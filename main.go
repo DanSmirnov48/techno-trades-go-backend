@@ -37,8 +37,7 @@ func main() {
 	})
 
 	// Set up routes
-	routes.RegisterUserRoutes(app, database.DB)
-	routes.RegisterProductRoutes(app)
+	routes.SetupRoutes(app, database.DB)
 
 	log.Fatal(app.Listen(":8000"))
 }

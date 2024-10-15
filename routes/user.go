@@ -21,7 +21,7 @@ func (endpoint Endpoint) GetAllUsers(c *fiber.Ctx) error {
 
 	users, _ := userManager.GetAll(db)
 	if users == nil {
-		return c.Status(404).JSON(utils.RequestErr(utils.ERR_SERVER_ERROR, "Users not found"))
+		return c.Status(404).JSON(utils.RequestErr(utils.ERR_NON_EXISTENT, "Users not found"))
 	}
 
 	response := schemas.FindAllUsersResponseSchem{
