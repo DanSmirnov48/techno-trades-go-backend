@@ -41,11 +41,11 @@ func RegisterUserRoutes(app *fiber.App, db *gorm.DB) {
 
 	// Users profile routes (5) for AUTHORIZED users
 	users := api.Group("/users")
-	users.Patch("/update-my-password", midw.AuthMiddleware, c.UpdateUserPassword)
-	users.Patch("/update-me", midw.AuthMiddleware, c.UpdateMe)
-	users.Delete("/deactivate-me", midw.AuthMiddleware, c.DeleteMe)
-	users.Get("/request-email-change-verification-code", midw.AuthMiddleware, c.GenerateUserEmailChangeVerificationToken)
-	users.Patch("/update-my-email", midw.AuthMiddleware, c.UpdateUserEmail)
+	users.Patch("/update-my-password", midw.AuthMiddleware, endpoint.UpdateSignedInUserPassword)
+	users.Patch("/update-me", midw.AuthMiddleware, endpoint.UpdateMe)
+	users.Delete("/deactivate-me", midw.AuthMiddleware, endpoint.DeleteMe)
+	users.Get("/request-email-change-verification-code", midw.AuthMiddleware, endpoint.SendUserEmailChangeVerificationToken)
+	users.Patch("/update-my-email", midw.AuthMiddleware, endpoint.UpdateUserEmail)
 
 	// CURRENT USER PHOTO UPDATE
 	users.Post("/file-upload", midw.AuthMiddleware, c.UploadUserPhoto)

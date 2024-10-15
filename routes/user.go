@@ -8,6 +8,7 @@ import (
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func (endpoint Endpoint) SendForgotPasswordOtp(c *fiber.Ctx) error {
@@ -101,5 +102,144 @@ func (endpoint Endpoint) ResetUserForgottenPassword(c *fiber.Ctx) error {
 	}
 
 	response := schemas.ResponseSchema{Message: "Password updated successfully"}.Init()
+	return c.Status(200).JSON(response)
+}
+
+func (endpoint Endpoint) UpdateSignedInUserPassword(c *fiber.Ctx) error {
+	db := endpoint.DB
+	passwordSchema := schemas.UpdateUserPasswordRequestSchema{}
+
+	user, ok := c.Locals("user").(*models.User)
+	if !ok || user == nil {
+		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNAUTHORIZED_USER, "Unauthorized Access"))
+	}
+
+	// Validate request
+	if errCode, errData := DecodeJSONBody(c, &passwordSchema); errData != nil {
+		return c.Status(errCode).JSON(errData)
+	}
+	if err := validator.Validate(passwordSchema); err != nil {
+		return c.Status(422).JSON(err)
+	}
+
+	if !user.ComparePassword(passwordSchema.CurrentPassword) {
+		return c.Status(401).JSON(utils.RequestErr(utils.ERR_INVALID_CREDENTIALS, "Current password is incorrect"))
+	}
+
+	if err := db.Model(&user).Updates(map[string]interface{}{
+		"Password": passwordSchema.NewPassword,
+	}).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to update password",
+		})
+	}
+
+	response := schemas.ResponseSchema{Message: "Password updated successfully"}.Init()
+	return c.Status(200).JSON(response)
+}
+
+func (endpoint Endpoint) SendUserEmailChangeVerificationToken(c *fiber.Ctx) error {
+	db := endpoint.DB
+
+	user, ok := c.Locals("user").(*models.User)
+	if !ok || user == nil {
+		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNAUTHORIZED_USER, "Unauthorized Access"))
+	}
+
+	if !user.Verified {
+		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNVERIFIED_USER, "Verify your email first"))
+	}
+
+	token, err := user.CreateEmailUpdateVerificationToken()
+	if err != nil {
+		return c.Status(500).JSON(utils.RequestErr(utils.ERR_NETWORK_FAILURE, "Failed to send email update email"))
+	}
+
+	db.Save(&user)
+
+	response := schemas.SendPasswordResetOtpResponseSchema{
+		ResponseSchema: schemas.ResponseSchema{Message: "Email Update Token sent successful"}.Init(),
+		Data:           schemas.PasswordResetOtpResponseSchema{Email: user.Email, Otp: token},
+	}
+	return c.Status(200).JSON(response)
+}
+
+func (endpoint Endpoint) UpdateUserEmail(c *fiber.Ctx) error {
+	db := endpoint.DB
+	emailSchema := schemas.UpdateUserEmailRequestSchema{}
+
+	user, ok := c.Locals("user").(*models.User)
+	if !ok || user == nil {
+		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNAUTHORIZED_USER, "Unauthorized Access"))
+	}
+
+	if !user.Verified {
+		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNVERIFIED_USER, "Verify your email first"))
+	}
+
+	// Validate request
+	if errCode, errData := DecodeJSONBody(c, &emailSchema); errData != nil {
+		return c.Status(errCode).JSON(errData)
+	}
+	if err := validator.Validate(emailSchema); err != nil {
+		return c.Status(422).JSON(err)
+	}
+
+	if user.EmailUpdateVerificationToken != emailSchema.Otp {
+		return c.Status(401).JSON(utils.RequestErr(utils.ERR_INCORRECT_OTP, "Invalid verification code"))
+	}
+
+	if err := db.Model(&user).Updates(map[string]interface{}{
+		"email":                           emailSchema.NewEmail,
+		"email_update_verification_token": nil,
+	}).Error; err != nil {
+		return c.Status(500).JSON(utils.RequestErr(utils.ERR_NETWORK_FAILURE, "Failed to update Email"))
+	}
+
+	response := schemas.ResponseSchema{Message: "Email updated successfully"}.Init()
+	return c.Status(200).JSON(response)
+}
+
+func (endpoint Endpoint) DeleteMe(c *fiber.Ctx) error {
+	db := endpoint.DB
+
+	user, ok := c.Locals("user").(*models.User)
+	if !ok || user == nil {
+		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNAUTHORIZED_USER, "Unauthorized Access"))
+	}
+
+	if err := db.Delete(&user).Error; err != nil {
+		return c.Status(401).JSON(utils.RequestErr(utils.ERR_SERVER_ERROR, "Could not delete user"))
+	}
+
+	response := schemas.ResponseSchema{Message: "User deleted successfully"}.Init()
+	return c.Status(200).JSON(response)
+}
+
+func (endpoint Endpoint) UpdateMe(c *fiber.Ctx) error {
+	db := endpoint.DB
+	updateMeSchema := schemas.UpdateUserRequestSchema{}
+
+	user, ok := c.Locals("user").(*models.User)
+	if !ok || user == nil {
+		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNAUTHORIZED_USER, "Unauthorized Access"))
+	}
+
+	// Validate request
+	if errCode, errData := DecodeJSONBody(c, &updateMeSchema); errData != nil {
+		return c.Status(errCode).JSON(errData)
+	}
+	if err := validator.Validate(updateMeSchema); err != nil {
+		return c.Status(422).JSON(err)
+	}
+
+	if err := db.Model(&user).
+		Clauses(clause.Returning{}).
+		Updates(updateMeSchema).Error; err != nil {
+		return c.Status(401).JSON(utils.RequestErr(utils.ERR_SERVER_ERROR, "Failed to update user information"))
+	}
+
+	response := schemas.ResponseSchema{Message: "User updated successfully"}.Init()
 	return c.Status(200).JSON(response)
 }
