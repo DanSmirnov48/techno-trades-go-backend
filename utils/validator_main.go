@@ -29,6 +29,7 @@ func init() {
 	// Register Custom Validators
 	customValidator.RegisterValidation("date", DateValidator)
 	customValidator.RegisterValidation("is_uuid", ValidateUUID)
+	customValidator.RegisterValidation("discounted_price_valid", ValidateDiscountedPrice)
 
 	customValidator.RegisterTagNameFunc(func(fld reflect.StructField) string {
 		name := strings.SplitN(fld.Tag.Get("json"), ",", 2)[0]
@@ -52,6 +53,7 @@ func registerTranslations(param string) {
 		})
 	}
 
+	registerTranslation("discounted_price_valid", "Invalid discounted price value based on the discount status.", translator)
 	registerTranslation("date", "Invalid date format!", translator)
 	registerTranslation("gt", "Value is too small!", translator)
 	registerTranslation("required", "This field is required.", translator)

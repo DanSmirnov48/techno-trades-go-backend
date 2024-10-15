@@ -46,4 +46,9 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	users.Patch("/update-my-email", midw.AuthMiddleware, endpoint.UpdateUserEmail)
 	users.Get("/:id", endpoint.GetUserByParamsID)
 	users.Get("/", midw.AuthMiddleware, midw.Admin, endpoint.GetAllUsers)
+
+	// ### -----------------------PRODUCTS-----------------------
+	// Product Routes (1)
+	products := api.Group("/products")
+	products.Post("/new", endpoint.CreateNewProduct)
 }

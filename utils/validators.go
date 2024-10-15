@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"reflect"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -22,4 +23,28 @@ func ValidateUUID(fl validator.FieldLevel) bool {
 
 	_, err := uuid.Parse(value)
 	return err == nil
+}
+
+func ValidateDiscountedPrice(fl validator.FieldLevel) bool {
+	isDiscountedField := fl.Parent().FieldByName("IsDiscounted")
+	if !isDiscountedField.IsValid() || isDiscountedField.Kind() != reflect.Bool {
+		return false
+	}
+
+	isDiscounted := isDiscountedField.Bool()
+	discountedPriceField := fl.Parent().FieldByName("DiscountedPrice")
+	if !discountedPriceField.IsValid() || discountedPriceField.Kind() != reflect.Float64 {
+		return false
+	}
+
+	discountedPrice := discountedPriceField.Float()
+	if isDiscounted && discountedPrice <= 0 {
+		return false
+	}
+
+	if !isDiscounted && discountedPrice != 0 {
+		return false
+	}
+
+	return true
 }
