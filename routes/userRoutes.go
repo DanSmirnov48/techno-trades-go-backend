@@ -2,8 +2,6 @@ package routes
 
 import (
 	midw "github.com/DanSmirnov48/techno-trades-go-backend/authentication"
-	c "github.com/DanSmirnov48/techno-trades-go-backend/controllers"
-	"github.com/DanSmirnov48/techno-trades-go-backend/models"
 	"gorm.io/gorm"
 
 	"github.com/gofiber/fiber/v2"
@@ -46,15 +44,6 @@ func RegisterUserRoutes(app *fiber.App, db *gorm.DB) {
 	users.Delete("/deactivate-me", midw.AuthMiddleware, endpoint.DeleteMe)
 	users.Get("/request-email-change-verification-code", midw.AuthMiddleware, endpoint.SendUserEmailChangeVerificationToken)
 	users.Patch("/update-my-email", midw.AuthMiddleware, endpoint.UpdateUserEmail)
-
-	// CURRENT USER PHOTO UPDATE
-	users.Post("/file-upload", midw.AuthMiddleware, c.UploadUserPhoto)
-	users.Get("/file-delete", midw.AuthMiddleware, c.DeleteUserPhoto)
-
-	// Get CURRENT AUTHORIZED user
-	users.Get("/me", c.GetCurrentUser)
-
-	users.Get("/:id", c.GetUserByParamsID)
-
-	users.Get("/", midw.AuthMiddleware, midw.RestrictTo(models.AdminRole), c.GetUsers)
+	users.Get("/:id", endpoint.GetUserByParamsID)
+	users.Get("/", midw.AuthMiddleware, midw.Admin, endpoint.GetAllUsers)
 }

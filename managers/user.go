@@ -30,8 +30,8 @@ func (obj UserManager) GetById(db *gorm.DB, id uuid.UUID) (*models.User, *fiber.
 	return &user, nil
 }
 
-func (obj UserManager) GetAll(db *gorm.DB) ([]models.User, *fiber.Error) {
-	var users []models.User
+func (obj UserManager) GetAll(db *gorm.DB) ([]*models.User, *fiber.Error) {
+	var users []*models.User
 
 	if err := db.Find(&users).Error; err != nil {
 		return nil, fiber.NewError(fiber.StatusInternalServerError, "Database error")

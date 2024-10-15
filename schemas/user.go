@@ -1,5 +1,7 @@
 package schemas
 
+import "github.com/DanSmirnov48/techno-trades-go-backend/models"
+
 // REQUEST BODY SCHEMAS
 type PasswordResetOtpRequestSchema struct {
 	Otp string `json:"otp" validate:"required" example:"ABC123"`
@@ -35,4 +37,23 @@ type PasswordResetOtpResponseSchema struct {
 type SendPasswordResetOtpResponseSchema struct {
 	ResponseSchema
 	Data PasswordResetOtpResponseSchema `json:"data"`
+}
+
+type UserResponseSchem struct {
+	Users *models.User `json:"users"`
+}
+
+type FindUserByIdResponseSchem struct {
+	ResponseSchema
+	Data UserResponseSchem `json:"data"`
+}
+
+type UsersResponseSchem struct {
+	Users  []*models.User `json:"users"`
+	Length int            `json:"length"`
+}
+
+type FindAllUsersResponseSchem struct {
+	ResponseSchema
+	Data UsersResponseSchem `json:"data"`
 }

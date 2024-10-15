@@ -11,6 +11,46 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+func (endpoint Endpoint) GetAllUsers(c *fiber.Ctx) error {
+	db := endpoint.DB
+
+	user, ok := c.Locals("user").(*models.User)
+	if !ok || user == nil || user.Role != models.AdminRole {
+		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNAUTHORIZED_USER, "Unauthorized Access"))
+	}
+
+	users, _ := userManager.GetAll(db)
+	if users == nil {
+		return c.Status(404).JSON(utils.RequestErr(utils.ERR_SERVER_ERROR, "Users not found"))
+	}
+
+	response := schemas.FindAllUsersResponseSchem{
+		ResponseSchema: schemas.ResponseSchema{Message: "All Users Found"}.Init(),
+		Data:           schemas.UsersResponseSchem{Users: users, Length: len(users)},
+	}
+	return c.Status(201).JSON(response)
+}
+
+func (endpoint Endpoint) GetUserByParamsID(c *fiber.Ctx) error {
+	db := endpoint.DB
+
+	userId, err := utils.ParseUUID(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(err)
+	}
+
+	user, _ := userManager.GetById(db, *userId)
+	if user == nil {
+		return c.Status(404).JSON(utils.RequestErr(utils.ERR_NON_EXISTENT, "User not found"))
+	}
+
+	response := schemas.FindUserByIdResponseSchem{
+		ResponseSchema: schemas.ResponseSchema{Message: "User Found"}.Init(),
+		Data:           schemas.UserResponseSchem{Users: user},
+	}
+	return c.Status(201).JSON(response)
+}
+
 func (endpoint Endpoint) SendForgotPasswordOtp(c *fiber.Ctx) error {
 	db := endpoint.DB
 	emailSchema := schemas.EmailRequestSchema{}
