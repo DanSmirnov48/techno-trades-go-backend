@@ -50,5 +50,5 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// ### -----------------------PRODUCTS-----------------------
 	// Product Routes (1)
 	products := api.Group("/products")
-	products.Post("/new", endpoint.CreateNewProduct)
+	products.Post("/new", midw.AuthMiddleware, midw.Admin, endpoint.CreateNewProduct)
 }
