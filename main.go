@@ -14,7 +14,8 @@ import (
 
 func main() {
 	cfg := config.GetConfig()
-	database.ConnectDB()
+	db := database.ConnectDb(cfg)
+	sqlDb, _ := db.DB()
 
 	app := fiber.New()
 
@@ -37,7 +38,7 @@ func main() {
 	})
 
 	// Set up routes
-	routes.SetupRoutes(app, database.DB)
-
+	routes.SetupRoutes(app, db)
+	defer sqlDb.Close()
 	log.Fatal(app.Listen(":8000"))
 }

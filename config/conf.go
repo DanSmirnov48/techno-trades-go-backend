@@ -1,80 +1,39 @@
-// config/config.go
-
 package config
 
 import (
-	"log"
-	"os"
-	"path/filepath"
-	"runtime"
-	"strconv"
-
-	"github.com/joho/godotenv"
+	"github.com/spf13/viper"
 )
 
-// Configuration holds the application configuration loaded from environment variables
-type Configuration struct {
-	EmailOTPExpireSeconds     int64
-	AccessTokenExpireMinutes  int
-	RefreshTokenExpireMinutes int
-	SecretKey                 string
-	FrontendURL               string
-	PostgresUser              string
-	PostgresPassword          string
-	PostgresServer            string
-	PostgresPort              string
-	PostgresDB                string
-	TestPostgresDB            string
-	MailSenderEmail           string
-	MailSenderPassword        string
-	MailSenderHost            string
-	MailSenderPort            int
-	CORSAllowedOrigins        string
+type Config struct {
+	EmailOtpExpireSeconds     int64  `mapstructure:"EMAIL_OTP_EXPIRE_SECONDS"`
+	AccessTokenExpireMinutes  int    `mapstructure:"ACCESS_TOKEN_EXPIRE_MINUTES"`
+	RefreshTokenExpireMinutes int    `mapstructure:"REFRESH_TOKEN_EXPIRE_MINUTES"`
+	Port                      string `mapstructure:"PORT"`
+	SecretKey                 string `mapstructure:"SECRET_KEY"`
+	PostgresUser              string `mapstructure:"POSTGRES_USER"`
+	PostgresPassword          string `mapstructure:"POSTGRES_PASSWORD"`
+	PostgresServer            string `mapstructure:"POSTGRES_SERVER"`
+	PostgresPort              string `mapstructure:"POSTGRES_PORT"`
+	PostgresDB                string `mapstructure:"POSTGRES_DB"`
+	TestPostgresDB            string `mapstructure:"TEST_POSTGRES_DB"`
+	MailSenderEmail           string `mapstructure:"MAIL_SENDER_EMAIL"`
+	MailSenderPassword        string `mapstructure:"MAIL_SENDER_PASSWORD"`
+	MailSenderHost            string `mapstructure:"MAIL_SENDER_HOST"`
+	MailSenderPort            int    `mapstructure:"MAIL_SENDER_PORT"`
+	CORSAllowedOrigins        string `mapstructure:"CORS_ALLOWED_ORIGINS"`
+	FrontendURL               string `mapstructure:"CLIENT_URL"`
 }
 
-var config *Configuration
+func GetConfig(testOpts ...bool) (config Config) {
+	viper.AddConfigPath(".")
+	viper.SetConfigName(".env")
+	viper.SetConfigType("env")
 
-func init() {
-	// Load environment variables from the .env file (if it exists) into the environment
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		log.Println("Unable to identify current directory (needed to load .env)", os.Stderr)
-		os.Exit(1)
+	viper.AutomaticEnv()
+	var err error
+	if err = viper.ReadInConfig(); err != nil {
+		panic(err)
 	}
-	basepath := filepath.Dir(file)
-	err := godotenv.Load(filepath.Join(basepath, "../.env"))
-
-	if err != nil {
-		log.Fatal("Error loading .env file: ", err)
-	}
-
-	// Convert string-based numeric variables to their respective types
-	emailOTPExpireSeconds, _ := strconv.ParseInt(os.Getenv("EMAIL_OTP_EXPIRE_SECONDS"), 10, 64)
-	mailSenderPort, _ := strconv.Atoi(os.Getenv("MAIL_SENDER_PORT"))
-	accessTokenExpireMinutes, _ := strconv.Atoi(os.Getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
-	refreshTokenExpireMinutes, _ := strconv.Atoi(os.Getenv("REFRESH_TOKEN_EXPIRE_MINUTES"))
-
-	config = &Configuration{
-		EmailOTPExpireSeconds:     emailOTPExpireSeconds,
-		AccessTokenExpireMinutes:  accessTokenExpireMinutes,
-		RefreshTokenExpireMinutes: refreshTokenExpireMinutes,
-		SecretKey:                 os.Getenv("SECRET_KEY"),
-		FrontendURL:               os.Getenv("CLIENT_URL"),
-		PostgresUser:              os.Getenv("POSTGRES_USER"),
-		PostgresPassword:          os.Getenv("POSTGRES_PASSWORD"),
-		PostgresServer:            os.Getenv("POSTGRES_SERVER"),
-		PostgresPort:              os.Getenv("POSTGRES_PORT"),
-		PostgresDB:                os.Getenv("POSTGRES_DB"),
-		TestPostgresDB:            os.Getenv("TEST_POSTGRES_DB"),
-		MailSenderEmail:           os.Getenv("MAIL_SENDER_EMAIL"),
-		MailSenderPassword:        os.Getenv("MAIL_SENDER_PASSWORD"),
-		MailSenderHost:            os.Getenv("MAIL_SENDER_HOST"),
-		MailSenderPort:            mailSenderPort,
-		CORSAllowedOrigins:        os.Getenv("CORS_ALLOWED_ORIGINS"),
-	}
-}
-
-// GetConfig returns the application configuration
-func GetConfig() *Configuration {
-	return config
+	viper.Unmarshal(&config)
+	return
 }
