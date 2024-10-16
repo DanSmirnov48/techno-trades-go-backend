@@ -13,7 +13,6 @@ import (
 )
 
 var (
-	validator   = utils.Validator()
 	cfg         = config.GetConfig()
 	userManager = managers.UserManager{}
 )
@@ -23,11 +22,8 @@ func (endpoint Endpoint) Login(c *fiber.Ctx) error {
 	userLoginSchema := schemas.LoginSchema{}
 
 	// Validate request
-	if errCode, errData := DecodeJSONBody(c, &userLoginSchema); errData != nil {
-		return c.Status(errCode).JSON(errData)
-	}
-	if err := validator.Validate(userLoginSchema); err != nil {
-		return c.Status(422).JSON(err)
+	if errCode, errData := ValidateRequest(c, &userLoginSchema); errData != nil {
+		return c.Status(*errCode).JSON(errData)
 	}
 
 	// Check if the user exists and validate password
@@ -69,11 +65,8 @@ func (endpoint Endpoint) Register(c *fiber.Ctx) error {
 	user := schemas.RegisterUser{}
 
 	// Validate request
-	if errCode, errData := DecodeJSONBody(c, &user); errData != nil {
-		return c.Status(errCode).JSON(errData)
-	}
-	if err := validator.Validate(user); err != nil {
-		return c.Status(422).JSON(err)
+	if errCode, errData := ValidateRequest(c, &user); errData != nil {
+		return c.Status(*errCode).JSON(errData)
 	}
 
 	userByEmail, _ := userManager.GetByEmail(db, user.Email)
@@ -102,11 +95,8 @@ func (endpoint Endpoint) VerifyAccount(c *fiber.Ctx) error {
 	input := schemas.VerifyAccountRequestSchema{}
 
 	// Validate request
-	if errCode, errData := DecodeJSONBody(c, &input); errData != nil {
-		return c.Status(errCode).JSON(errData)
-	}
-	if err := validator.Validate(input); err != nil {
-		return c.Status(422).JSON(err)
+	if errCode, errData := ValidateRequest(c, &input); errData != nil {
+		return c.Status(*errCode).JSON(errData)
 	}
 
 	user, _ := userManager.GetByEmail(db, input.Email)
@@ -163,11 +153,8 @@ func (endpoint Endpoint) Refresh(c *fiber.Ctx) error {
 	}
 
 	// Validate request
-	if errCode, errData := DecodeJSONBody(c, &refreshTokenSchema); errData != nil {
-		return c.Status(errCode).JSON(errData)
-	}
-	if err := validator.Validate(refreshTokenSchema); err != nil {
-		return c.Status(422).JSON(err)
+	if errCode, errData := ValidateRequest(c, &refreshTokenSchema); errData != nil {
+		return c.Status(*errCode).JSON(errData)
 	}
 
 	token := refreshTokenSchema.Refresh
@@ -195,13 +182,9 @@ func (endpoint Endpoint) SendMagicLink(c *fiber.Ctx) error {
 	emailSchema := schemas.EmailRequestSchema{}
 
 	// Validate request
-	if errCode, errData := DecodeJSONBody(c, &emailSchema); errData != nil {
-		return c.Status(errCode).JSON(errData)
+	if errCode, errData := ValidateRequest(c, &emailSchema); errData != nil {
+		return c.Status(*errCode).JSON(errData)
 	}
-	if err := validator.Validate(emailSchema); err != nil {
-		return c.Status(422).JSON(err)
-	}
-
 	user, _ := userManager.GetByEmail(db, emailSchema.Email)
 	if user == nil {
 		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INVALID_OWNER, "User not found"))

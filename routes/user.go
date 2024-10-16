@@ -56,11 +56,8 @@ func (endpoint Endpoint) SendForgotPasswordOtp(c *fiber.Ctx) error {
 	emailSchema := schemas.EmailRequestSchema{}
 
 	// Validate request
-	if errCode, errData := DecodeJSONBody(c, &emailSchema); errData != nil {
-		return c.Status(errCode).JSON(errData)
-	}
-	if err := validator.Validate(emailSchema); err != nil {
-		return c.Status(422).JSON(err)
+	if errCode, errData := ValidateRequest(c, &emailSchema); errData != nil {
+		return c.Status(*errCode).JSON(errData)
 	}
 
 	user, _ := userManager.GetByEmail(db, emailSchema.Email)
@@ -92,11 +89,8 @@ func (endpoint Endpoint) VerifyForottenPasswordResetToken(c *fiber.Ctx) error {
 	otpSchema := schemas.PasswordResetOtpRequestSchema{}
 
 	// Validate request
-	if errCode, errData := DecodeJSONBody(c, &otpSchema); errData != nil {
-		return c.Status(errCode).JSON(errData)
-	}
-	if err := validator.Validate(otpSchema); err != nil {
-		return c.Status(422).JSON(err)
+	if errCode, errData := ValidateRequest(c, &otpSchema); errData != nil {
+		return c.Status(*errCode).JSON(errData)
 	}
 
 	var user *models.User
@@ -117,11 +111,8 @@ func (endpoint Endpoint) ResetUserForgottenPassword(c *fiber.Ctx) error {
 	resetSchema := schemas.UserPasswordResetRequestSchema{}
 
 	// Validate request
-	if errCode, errData := DecodeJSONBody(c, &resetSchema); errData != nil {
-		return c.Status(errCode).JSON(errData)
-	}
-	if err := validator.Validate(resetSchema); err != nil {
-		return c.Status(422).JSON(err)
+	if errCode, errData := ValidateRequest(c, &resetSchema); errData != nil {
+		return c.Status(*errCode).JSON(errData)
 	}
 
 	var user *models.User
@@ -155,11 +146,8 @@ func (endpoint Endpoint) UpdateSignedInUserPassword(c *fiber.Ctx) error {
 	}
 
 	// Validate request
-	if errCode, errData := DecodeJSONBody(c, &passwordSchema); errData != nil {
-		return c.Status(errCode).JSON(errData)
-	}
-	if err := validator.Validate(passwordSchema); err != nil {
-		return c.Status(422).JSON(err)
+	if errCode, errData := ValidateRequest(c, &passwordSchema); errData != nil {
+		return c.Status(*errCode).JSON(errData)
 	}
 
 	if !user.ComparePassword(passwordSchema.CurrentPassword) {
@@ -169,10 +157,7 @@ func (endpoint Endpoint) UpdateSignedInUserPassword(c *fiber.Ctx) error {
 	if err := db.Model(&user).Updates(map[string]interface{}{
 		"Password": passwordSchema.NewPassword,
 	}).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Failed to update password",
-		})
+		return c.Status(401).JSON(utils.RequestErr(utils.ERR_SERVER_ERROR, "Failed to update password"))
 	}
 
 	response := schemas.ResponseSchema{Message: "Password updated successfully"}.Init()
@@ -219,11 +204,8 @@ func (endpoint Endpoint) UpdateUserEmail(c *fiber.Ctx) error {
 	}
 
 	// Validate request
-	if errCode, errData := DecodeJSONBody(c, &emailSchema); errData != nil {
-		return c.Status(errCode).JSON(errData)
-	}
-	if err := validator.Validate(emailSchema); err != nil {
-		return c.Status(422).JSON(err)
+	if errCode, errData := ValidateRequest(c, &emailSchema); errData != nil {
+		return c.Status(*errCode).JSON(errData)
 	}
 
 	if user.EmailUpdateVerificationToken != emailSchema.Otp {
@@ -267,11 +249,8 @@ func (endpoint Endpoint) UpdateMe(c *fiber.Ctx) error {
 	}
 
 	// Validate request
-	if errCode, errData := DecodeJSONBody(c, &updateMeSchema); errData != nil {
-		return c.Status(errCode).JSON(errData)
-	}
-	if err := validator.Validate(updateMeSchema); err != nil {
-		return c.Status(422).JSON(err)
+	if errCode, errData := ValidateRequest(c, &updateMeSchema); errData != nil {
+		return c.Status(*errCode).JSON(errData)
 	}
 
 	if err := db.Model(&user).

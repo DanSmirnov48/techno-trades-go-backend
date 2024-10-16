@@ -20,11 +20,8 @@ func (endpoint Endpoint) CreateNewProduct(c *fiber.Ctx) error {
 	createProductSchema := schemas.CreateProduct{}
 
 	// Validate request
-	if errCode, errData := DecodeJSONBody(c, &createProductSchema); errData != nil {
-		return c.Status(errCode).JSON(errData)
-	}
-	if err := validator.Validate(createProductSchema); err != nil {
-		return c.Status(422).JSON(err)
+	if errCode, errData := ValidateRequest(c, &createProductSchema); errData != nil {
+		return c.Status(*errCode).JSON(errData)
 	}
 
 	user, ok := c.Locals("user").(*models.User)

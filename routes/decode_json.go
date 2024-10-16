@@ -13,7 +13,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func DecodeJSONBody(c *fiber.Ctx, dst interface{}) (int, *utils.ErrorResponse) {
+func decodeJSONBody(c *fiber.Ctx, dst interface{}) (int, *utils.ErrorResponse) {
 	var errData *utils.ErrorResponse
 	code := 200
 	if c.Get("Content-Type") != "application/json" {
@@ -77,4 +77,16 @@ func DecodeJSONBody(c *fiber.Ctx, dst interface{}) (int, *utils.ErrorResponse) {
 		return 400, &errData
 	}
 	return code, nil
+}
+
+func ValidateRequest(c *fiber.Ctx, data interface{}) (*int, *utils.ErrorResponse) {
+	validator := utils.Validator()
+	if errCode, errData := decodeJSONBody(c, &data); errData != nil {
+		return &errCode, errData
+	}
+	if errData := validator.Validate(data); errData != nil {
+		errCode := 422
+		return &errCode, errData
+	}
+	return nil, nil
 }
