@@ -41,8 +41,6 @@ func DropTables(db *gorm.DB) {
 	}
 }
 
-var DB *gorm.DB
-
 func ConnectDb(cfg config.Config, logs ...bool) *gorm.DB {
 	dbUrlTemplate := "host=%s port=%s user=%s dbname=%s password=%s"
 	dsn := fmt.Sprintf(

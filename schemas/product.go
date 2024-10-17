@@ -1,5 +1,7 @@
 package schemas
 
+import "github.com/DanSmirnov48/techno-trades-go-backend/models"
+
 // REQUEST BODY SCHEMAS
 type CreateProduct struct {
 	Name            string  `json:"name" validate:"required,max=50" example:"Sony PlayStation 5"`
@@ -10,4 +12,14 @@ type CreateProduct struct {
 	CountInStock    int     `json:"stock" validate:"required,min=0" example:"100"`
 	IsDiscounted    bool    `json:"is_discounted"`
 	DiscountedPrice float64 `json:"discounted_price" validate:"discounted_price_valid" example:"299.99"`
+}
+
+// RESPONSE BODY SCHEMAS
+type NewProductResponseSchema struct {
+	Product *models.Product `json:"product"`
+}
+
+type ProductCreateResponseSchema struct {
+	ResponseSchema
+	Data NewProductResponseSchema `json:"data"`
 }

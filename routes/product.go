@@ -37,5 +37,9 @@ func (endpoint Endpoint) CreateNewProduct(c *fiber.Ctx) error {
 	data, _ := json.MarshalIndent(&newProduct, "", "  ")
 	fmt.Println(string(data))
 
-	return c.Status(201).JSON("OK")
+	response := schemas.ProductCreateResponseSchema{
+		ResponseSchema: SuccessResponse("Product created successfully"),
+		Data:           schemas.NewProductResponseSchema{Product: newProduct},
+	}
+	return c.Status(201).JSON(response)
 }

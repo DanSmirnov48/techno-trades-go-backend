@@ -1,7 +1,6 @@
 package models
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
@@ -64,15 +63,10 @@ func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
 		return err
 	}
 	u.Password = string(hashedPassword)
-
-	fmt.Println("Running BeforeCreate function.")
-
 	return
 }
 
 func (u *User) BeforeUpdate(tx *gorm.DB) (err error) {
-	fmt.Println("Running BeforeUpdate function.")
-
 	if tx.Statement.Changed("Password") {
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
 		if err != nil {

@@ -25,7 +25,7 @@ func (endpoint Endpoint) GetAllUsers(c *fiber.Ctx) error {
 	}
 
 	response := schemas.FindAllUsersResponseSchem{
-		ResponseSchema: schemas.ResponseSchema{Message: "All Users Found"}.Init(),
+		ResponseSchema: SuccessResponse("All Users Found"),
 		Data:           schemas.UsersResponseSchem{Users: users, Length: len(users)},
 	}
 	return c.Status(201).JSON(response)
@@ -45,7 +45,7 @@ func (endpoint Endpoint) GetUserByParamsID(c *fiber.Ctx) error {
 	}
 
 	response := schemas.FindUserByIdResponseSchem{
-		ResponseSchema: schemas.ResponseSchema{Message: "User Found"}.Init(),
+		ResponseSchema: SuccessResponse("User Found"),
 		Data:           schemas.UserResponseSchem{Users: user},
 	}
 	return c.Status(201).JSON(response)
@@ -78,7 +78,7 @@ func (endpoint Endpoint) SendForgotPasswordOtp(c *fiber.Ctx) error {
 	db.Save(&user)
 
 	response := schemas.SendPasswordResetOtpResponseSchema{
-		ResponseSchema: schemas.ResponseSchema{Message: "Password Reset Token sent successful"}.Init(),
+		ResponseSchema: SuccessResponse("Password Reset Token sent successful"),
 		Data:           schemas.PasswordResetOtpResponseSchema{Email: user.Email, Otp: token},
 	}
 	return c.Status(201).JSON(response)
@@ -101,9 +101,7 @@ func (endpoint Endpoint) VerifyForottenPasswordResetToken(c *fiber.Ctx) error {
 		}
 		return c.Status(500).JSON(utils.RequestErr(utils.ERR_NETWORK_FAILURE, "Error checking user credentials"))
 	}
-
-	response := schemas.ResponseSchema{Message: "Token verification successful"}.Init()
-	return c.Status(200).JSON(response)
+	return c.Status(200).JSON(SuccessResponse("Token verification successful"))
 }
 
 func (endpoint Endpoint) ResetUserForgottenPassword(c *fiber.Ctx) error {
@@ -132,8 +130,7 @@ func (endpoint Endpoint) ResetUserForgottenPassword(c *fiber.Ctx) error {
 		return c.Status(500).JSON(utils.RequestErr(utils.ERR_NETWORK_FAILURE, "Failed to update password"))
 	}
 
-	response := schemas.ResponseSchema{Message: "Password updated successfully"}.Init()
-	return c.Status(200).JSON(response)
+	return c.Status(200).JSON(SuccessResponse("Password updated successfully"))
 }
 
 func (endpoint Endpoint) UpdateSignedInUserPassword(c *fiber.Ctx) error {
@@ -160,8 +157,7 @@ func (endpoint Endpoint) UpdateSignedInUserPassword(c *fiber.Ctx) error {
 		return c.Status(401).JSON(utils.RequestErr(utils.ERR_SERVER_ERROR, "Failed to update password"))
 	}
 
-	response := schemas.ResponseSchema{Message: "Password updated successfully"}.Init()
-	return c.Status(200).JSON(response)
+	return c.Status(200).JSON(SuccessResponse("Password updated successfully"))
 }
 
 func (endpoint Endpoint) SendUserEmailChangeVerificationToken(c *fiber.Ctx) error {
@@ -184,7 +180,7 @@ func (endpoint Endpoint) SendUserEmailChangeVerificationToken(c *fiber.Ctx) erro
 	db.Save(&user)
 
 	response := schemas.SendPasswordResetOtpResponseSchema{
-		ResponseSchema: schemas.ResponseSchema{Message: "Email Update Token sent successful"}.Init(),
+		ResponseSchema: SuccessResponse("Email Update Token sent successful"),
 		Data:           schemas.PasswordResetOtpResponseSchema{Email: user.Email, Otp: token},
 	}
 	return c.Status(200).JSON(response)
@@ -219,8 +215,7 @@ func (endpoint Endpoint) UpdateUserEmail(c *fiber.Ctx) error {
 		return c.Status(500).JSON(utils.RequestErr(utils.ERR_NETWORK_FAILURE, "Failed to update Email"))
 	}
 
-	response := schemas.ResponseSchema{Message: "Email updated successfully"}.Init()
-	return c.Status(200).JSON(response)
+	return c.Status(200).JSON(SuccessResponse("Email updated successfully"))
 }
 
 func (endpoint Endpoint) DeleteMe(c *fiber.Ctx) error {
@@ -235,8 +230,7 @@ func (endpoint Endpoint) DeleteMe(c *fiber.Ctx) error {
 		return c.Status(401).JSON(utils.RequestErr(utils.ERR_SERVER_ERROR, "Could not delete user"))
 	}
 
-	response := schemas.ResponseSchema{Message: "User deleted successfully"}.Init()
-	return c.Status(200).JSON(response)
+	return c.Status(200).JSON(SuccessResponse("User deleted successfully"))
 }
 
 func (endpoint Endpoint) UpdateMe(c *fiber.Ctx) error {
@@ -259,6 +253,5 @@ func (endpoint Endpoint) UpdateMe(c *fiber.Ctx) error {
 		return c.Status(401).JSON(utils.RequestErr(utils.ERR_SERVER_ERROR, "Failed to update user information"))
 	}
 
-	response := schemas.ResponseSchema{Message: "User updated successfully"}.Init()
-	return c.Status(200).JSON(response)
+	return c.Status(200).JSON(SuccessResponse("User updated successfully"))
 }

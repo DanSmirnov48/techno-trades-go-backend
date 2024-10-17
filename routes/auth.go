@@ -45,7 +45,7 @@ func (endpoint Endpoint) Login(c *fiber.Ctx) error {
 	auth.SetAuthCookie(c, auth.RefreshToken, refresh)
 
 	response := schemas.LoginResponseSchema{
-		ResponseSchema: schemas.ResponseSchema{Message: "Login successful"}.Init(),
+		ResponseSchema: SuccessResponse("Login successful"),
 		Data:           schemas.TokensResponseSchema{User: user, Access: access, Refresh: refresh},
 	}
 	return c.Status(201).JSON(response)
@@ -56,8 +56,7 @@ func (endpoint Endpoint) Logout(c *fiber.Ctx) error {
 	auth.RemoveAuthCookie(c, auth.AccessToken)
 	auth.RemoveAuthCookie(c, auth.RefreshToken)
 
-	response := schemas.ResponseSchema{Message: "Logout successful"}.Init()
-	return c.Status(200).JSON(response)
+	return c.Status(200).JSON(SuccessResponse("Logout successful"))
 }
 
 func (endpoint Endpoint) Register(c *fiber.Ctx) error {
@@ -84,7 +83,7 @@ func (endpoint Endpoint) Register(c *fiber.Ctx) error {
 	}
 
 	response := schemas.RegisterResponseSchema{
-		ResponseSchema: schemas.ResponseSchema{Message: "Registration successful"}.Init(),
+		ResponseSchema: SuccessResponse("Registration successful"),
 		Data:           schemas.EmailRequestSchema{Email: newUser.Email},
 	}
 	return c.Status(201).JSON(response)
@@ -116,8 +115,7 @@ func (endpoint Endpoint) VerifyAccount(c *fiber.Ctx) error {
 		return c.Status(err.Code).JSON(utils.RequestErr(utils.ERR_SERVER_ERROR, err.Message))
 	}
 
-	response := schemas.ResponseSchema{Message: "Account verification successful"}.Init()
-	return c.Status(200).JSON(response)
+	return c.Status(200).JSON(SuccessResponse("Account verification successful"))
 }
 
 func (endpoint Endpoint) ValidateMe(c *fiber.Ctx) error {
@@ -137,7 +135,7 @@ func (endpoint Endpoint) ValidateMe(c *fiber.Ctx) error {
 	c.Locals("user", user)
 
 	response := schemas.LoginResponseSchema{
-		ResponseSchema: schemas.ResponseSchema{Message: "Validate successful"}.Init(),
+		ResponseSchema: SuccessResponse("Validate successful"),
 		Data:           schemas.TokensResponseSchema{User: user, Access: accessToken},
 	}
 
@@ -171,7 +169,7 @@ func (endpoint Endpoint) Refresh(c *fiber.Ctx) error {
 	auth.SetAuthCookie(c, auth.RefreshToken, refresh)
 
 	response := schemas.LoginResponseSchema{
-		ResponseSchema: schemas.ResponseSchema{Message: "Tokens refresh successful"}.Init(),
+		ResponseSchema: SuccessResponse("Tokens refresh successful"),
 		Data:           schemas.TokensResponseSchema{User: user, Access: access, Refresh: refresh},
 	}
 	return c.Status(201).JSON(response)
@@ -204,7 +202,7 @@ func (endpoint Endpoint) SendMagicLink(c *fiber.Ctx) error {
 	magicLink := fmt.Sprintf("%s/login/%s", cfg.FrontendURL, token)
 
 	response := schemas.MagicLinkLoginResponseSchema{
-		ResponseSchema: schemas.ResponseSchema{Message: "MagicLink has been sent"}.Init(),
+		ResponseSchema: SuccessResponse("MagicLink has been sent"),
 		Data:           schemas.MagicLinkResponseSchema{Link: magicLink},
 	}
 	return c.Status(200).JSON(response)
@@ -235,7 +233,7 @@ func (endpoint Endpoint) MagicLinkLogin(c *fiber.Ctx) error {
 	auth.SetAuthCookie(c, auth.RefreshToken, refresh)
 
 	response := schemas.LoginResponseSchema{
-		ResponseSchema: schemas.ResponseSchema{Message: "Login successful"}.Init(),
+		ResponseSchema: SuccessResponse("Logged in successfully"),
 		Data:           schemas.TokensResponseSchema{User: user, Access: access, Refresh: refresh},
 	}
 	return c.Status(201).JSON(response)
