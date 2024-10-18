@@ -4,13 +4,13 @@ import "github.com/DanSmirnov48/techno-trades-go-backend/models"
 
 // REQUEST BODY SCHEMAS
 type PasswordResetOtpRequestSchema struct {
-	Otp string `json:"otp" validate:"required" example:"ABC123"`
+	Otp uint32 `json:"otp" validate:"required" example:"112233"`
 }
 
 type UserPasswordResetRequestSchema struct {
 	Email       string `json:"email" validate:"required,min=5,email" example:"johndoe@email.com"`
 	NewPassword string `json:"new_password" validate:"required,min=8,max=50" example:"strongpassword"`
-	Otp         string `json:"otp" validate:"required" example:"ABC123"`
+	Otp         uint32 `json:"otp" validate:"required" example:"112233"`
 }
 
 type UpdateUserPasswordRequestSchema struct {
@@ -19,7 +19,7 @@ type UpdateUserPasswordRequestSchema struct {
 }
 
 type UpdateUserEmailRequestSchema struct {
-	Otp      string `json:"otp" validate:"required" example:"ABC123"`
+	Otp      uint32 `json:"otp" validate:"required" example:"112233"`
 	NewEmail string `json:"new_email" validate:"required,min=5,email" example:"johndoe@example.com"`
 }
 
@@ -31,7 +31,7 @@ type UpdateUserRequestSchema struct {
 // RESPONSE BODY SCHEMAS
 type PasswordResetOtpResponseSchema struct {
 	Email string `json:"email" validate:"required,min=5,email" example:"johndoe@example.com"`
-	Otp   string `json:"otp" validate:"required" example:"ABC123"`
+	Otp   uint32 `json:"otp" validate:"required" example:"112233"`
 }
 
 type SendPasswordResetOtpResponseSchema struct {

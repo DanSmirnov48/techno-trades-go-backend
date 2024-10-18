@@ -1,13 +1,11 @@
 package routes
 
 import (
-	"time"
-
 	"github.com/DanSmirnov48/techno-trades-go-backend/models"
 	"github.com/DanSmirnov48/techno-trades-go-backend/schemas"
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/gorm"
+	"github.com/google/uuid"
 	"gorm.io/gorm/clause"
 )
 
@@ -65,26 +63,23 @@ func (endpoint Endpoint) SendForgotPasswordOtp(c *fiber.Ctx) error {
 		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INVALID_OWNER, "User not found"))
 	}
 
-	if !user.Verified {
+	if !user.IsEmailVerified {
 		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNVERIFIED_USER, "Verify your email first"))
 	}
 
-	// Generate a password reset token
-	token, err := user.CreatePasswordResetVerificationToken()
-	if err != nil {
-		return c.Status(500).JSON(utils.RequestErr(utils.ERR_NETWORK_FAILURE, "Failed to generate password reset code"))
-	}
-
-	db.Save(&user)
+	// Create Otp
+	otp := models.Otp{UserId: user.ID}
+	db.Take(&otp, otp)
+	db.Create(&otp)
 
 	response := schemas.SendPasswordResetOtpResponseSchema{
 		ResponseSchema: SuccessResponse("Password Reset Token sent successful"),
-		Data:           schemas.PasswordResetOtpResponseSchema{Email: user.Email, Otp: token},
+		Data:           schemas.PasswordResetOtpResponseSchema{Email: user.Email, Otp: otp.Code},
 	}
 	return c.Status(201).JSON(response)
 }
 
-func (endpoint Endpoint) VerifyForottenPasswordResetToken(c *fiber.Ctx) error {
+func (endpoint Endpoint) VerifyForottenPasswordOtp(c *fiber.Ctx) error {
 	db := endpoint.DB
 	otpSchema := schemas.PasswordResetOtpRequestSchema{}
 
@@ -93,13 +88,14 @@ func (endpoint Endpoint) VerifyForottenPasswordResetToken(c *fiber.Ctx) error {
 		return c.Status(*errCode).JSON(errData)
 	}
 
-	var user *models.User
+	otp := models.Otp{Code: otpSchema.Otp}
+	db.Take(&otp, otp)
+	if otp.ID == uuid.Nil || otp.Code != uint32(otpSchema.Otp) {
+		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INCORRECT_OTP, "Incorrect Otp"))
+	}
 
-	if err := db.Where("password_reset_token = ? AND password_reset_token_expires > ?", otpSchema.Otp, time.Now()).First(&user).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return c.Status(401).JSON(utils.RequestErr(utils.ERR_INVALID_TOKEN, "Refresh token is invalid or expired"))
-		}
-		return c.Status(500).JSON(utils.RequestErr(utils.ERR_NETWORK_FAILURE, "Error checking user credentials"))
+	if otp.CheckExpiration() {
+		return c.Status(400).JSON(utils.RequestErr(utils.ERR_EXPIRED_OTP, "Expired Otp"))
 	}
 	return c.Status(200).JSON(SuccessResponse("Token verification successful"))
 }
@@ -113,22 +109,21 @@ func (endpoint Endpoint) ResetUserForgottenPassword(c *fiber.Ctx) error {
 		return c.Status(*errCode).JSON(errData)
 	}
 
-	var user *models.User
-
-	if err := db.Where("email = ? AND password_reset_token = ? AND password_reset_token_expires > ?", resetSchema.Email, resetSchema.Otp, time.Now()).First(&user).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return c.Status(401).JSON(utils.RequestErr(utils.ERR_INVALID_TOKEN, "Refresh token is invalid or expired"))
-		}
-		return c.Status(500).JSON(utils.RequestErr(utils.ERR_NETWORK_FAILURE, "Error checking user credentials"))
+	user := models.User{Email: resetSchema.Email}
+	db.Take(&user, user)
+	if user.ID == uuid.Nil {
+		return c.Status(404).JSON(utils.RequestErr(utils.ERR_NON_EXISTENT, "User not Found"))
 	}
 
-	if err := db.Model(&user).Updates(map[string]interface{}{
-		"Password":                  resetSchema.NewPassword,
-		"PasswordResetToken":        nil,
-		"PasswordResetTokenExpires": nil,
-	}).Error; err != nil {
-		return c.Status(500).JSON(utils.RequestErr(utils.ERR_NETWORK_FAILURE, "Failed to update password"))
+	otp := models.Otp{Code: resetSchema.Otp, UserId: user.ID}
+	db.Take(&otp, otp)
+	if otp.ID == uuid.Nil || otp.Code != resetSchema.Otp {
+		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INCORRECT_OTP, "Incorrect Otp"))
 	}
+
+	// Update Users Password & Delete Otp
+	db.Model(&user).Updates(map[string]interface{}{"Password": resetSchema.NewPassword})
+	db.Delete(&otp)
 
 	return c.Status(200).JSON(SuccessResponse("Password updated successfully"))
 }
@@ -151,16 +146,13 @@ func (endpoint Endpoint) UpdateSignedInUserPassword(c *fiber.Ctx) error {
 		return c.Status(401).JSON(utils.RequestErr(utils.ERR_INVALID_CREDENTIALS, "Current password is incorrect"))
 	}
 
-	if err := db.Model(&user).Updates(map[string]interface{}{
-		"Password": passwordSchema.NewPassword,
-	}).Error; err != nil {
-		return c.Status(401).JSON(utils.RequestErr(utils.ERR_SERVER_ERROR, "Failed to update password"))
-	}
+	// Update Users Password
+	db.Model(&user).Updates(map[string]interface{}{"Password": passwordSchema.NewPassword})
 
 	return c.Status(200).JSON(SuccessResponse("Password updated successfully"))
 }
 
-func (endpoint Endpoint) SendUserEmailChangeVerificationToken(c *fiber.Ctx) error {
+func (endpoint Endpoint) SendUserEmailChangeOtp(c *fiber.Ctx) error {
 	db := endpoint.DB
 
 	user, ok := c.Locals("user").(*models.User)
@@ -168,20 +160,18 @@ func (endpoint Endpoint) SendUserEmailChangeVerificationToken(c *fiber.Ctx) erro
 		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNAUTHORIZED_USER, "Unauthorized Access"))
 	}
 
-	if !user.Verified {
+	if !user.IsEmailVerified {
 		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNVERIFIED_USER, "Verify your email first"))
 	}
 
-	token, err := user.CreateEmailUpdateVerificationToken()
-	if err != nil {
-		return c.Status(500).JSON(utils.RequestErr(utils.ERR_NETWORK_FAILURE, "Failed to send email update email"))
-	}
-
-	db.Save(&user)
+	// Create Otp
+	otp := models.Otp{UserId: user.ID}
+	db.Take(&otp, otp)
+	db.Create(&otp)
 
 	response := schemas.SendPasswordResetOtpResponseSchema{
 		ResponseSchema: SuccessResponse("Email Update Token sent successful"),
-		Data:           schemas.PasswordResetOtpResponseSchema{Email: user.Email, Otp: token},
+		Data:           schemas.PasswordResetOtpResponseSchema{Email: user.Email, Otp: otp.Code},
 	}
 	return c.Status(200).JSON(response)
 }
@@ -195,7 +185,7 @@ func (endpoint Endpoint) UpdateUserEmail(c *fiber.Ctx) error {
 		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNAUTHORIZED_USER, "Unauthorized Access"))
 	}
 
-	if !user.Verified {
+	if !user.IsEmailVerified {
 		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNVERIFIED_USER, "Verify your email first"))
 	}
 
@@ -204,16 +194,15 @@ func (endpoint Endpoint) UpdateUserEmail(c *fiber.Ctx) error {
 		return c.Status(*errCode).JSON(errData)
 	}
 
-	if user.EmailUpdateVerificationToken != emailSchema.Otp {
-		return c.Status(401).JSON(utils.RequestErr(utils.ERR_INCORRECT_OTP, "Invalid verification code"))
+	otp := models.Otp{Code: emailSchema.Otp}
+	db.Take(&otp, otp)
+	if otp.ID == uuid.Nil || otp.Code != emailSchema.Otp {
+		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INCORRECT_OTP, "Incorrect Otp"))
 	}
 
-	if err := db.Model(&user).Updates(map[string]interface{}{
-		"email":                           emailSchema.NewEmail,
-		"email_update_verification_token": nil,
-	}).Error; err != nil {
-		return c.Status(500).JSON(utils.RequestErr(utils.ERR_NETWORK_FAILURE, "Failed to update Email"))
-	}
+	// Update Users Email & Delete Otp
+	db.Model(&user).Updates(map[string]interface{}{"email": emailSchema.NewEmail})
+	db.Delete(&otp)
 
 	return c.Status(200).JSON(SuccessResponse("Email updated successfully"))
 }

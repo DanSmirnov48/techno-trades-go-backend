@@ -16,32 +16,21 @@ const (
 	AdminRole Role = "admin"
 )
 
-type Photo struct {
-	Key  uuid.UUID `gorm:"type:uuid;"`
-	Name string    `gorm:"size:255"`
-	URL  string    `gorm:"size:255"`
-}
-
 type User struct {
-	ID                           uuid.UUID `gorm:"type:uuid;primaryKey"`
-	FirstName                    string    `gorm:"size:100;not null"`
-	LastName                     string    `gorm:"size:100;not null"`
-	Email                        string    `gorm:"size:100;unique;not null"`
-	Role                         Role      `gorm:"size:50;not null"`
-	Photo                        *Photo    `gorm:"embedded;embeddedPrefix:photo_"`
-	Password                     string    `gorm:"size:255;not null"`
-	Active                       bool      `gorm:"default:true"`
-	Verified                     bool      `gorm:"default:false"`
-	VerificationCode             int64
-	EmailUpdateVerificationToken string `gorm:"size:255"`
-	PasswordResetToken           string `gorm:"size:255"`
-	PasswordResetTokenExpires    time.Time
-	MagicLogInToken              string `gorm:"size:255"`
-	MagicLogInTokenExpires       time.Time
-	Products                     []Product `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE;"` // User can have multiple products
-	CreatedAt                    time.Time
-	UpdatedAt                    time.Time
-	DeletedAt                    gorm.DeletedAt `gorm:"index"`
+	ID                     uuid.UUID `gorm:"type:uuid;primaryKey"`
+	FirstName              string    `gorm:"size:100;not null"`
+	LastName               string    `gorm:"size:100;not null"`
+	Email                  string    `gorm:"size:100;unique;not null"`
+	Role                   Role      `gorm:"size:50;not null"`
+	Password               string    `gorm:"size:255;not null"`
+	Active                 bool      `gorm:"default:true"`
+	IsEmailVerified        bool      `gorm:"default:false"`
+	MagicLogInToken        string    `gorm:"size:255"`
+	MagicLogInTokenExpires time.Time
+	Products               []Product `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE;"`
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
+	DeletedAt              gorm.DeletedAt `gorm:"index"`
 }
 
 func (u *User) ComparePassword(plainPassword string) bool {
@@ -75,32 +64,6 @@ func (u *User) BeforeUpdate(tx *gorm.DB) (err error) {
 		tx.Statement.SetColumn("Password", string(hashedPassword))
 	}
 	return nil
-}
-
-func (u *User) CreatePasswordResetVerificationToken() (string, error) {
-	// Generate a 4-byte (8 character) uppercase random token.
-	token, err := utils.GenerateRandomToken(8, true)
-	if err != nil {
-		return "", err
-	}
-
-	// Set the token and expiration time.
-	u.PasswordResetToken = token
-	u.PasswordResetTokenExpires = time.Now().Add(10 * time.Minute)
-
-	return token, nil
-}
-
-func (u *User) CreateEmailUpdateVerificationToken() (string, error) {
-	token, err := utils.GenerateRandomToken(8, false)
-	if err != nil {
-		return "", err
-	}
-
-	// Set the token.
-	u.EmailUpdateVerificationToken = token
-
-	return token, nil
 }
 
 func (u *User) CreateMagicLogInLinkToken() (string, error) {

@@ -10,6 +10,7 @@ import (
 	"github.com/DanSmirnov48/techno-trades-go-backend/schemas"
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 )
 
 var (
@@ -32,7 +33,7 @@ func (endpoint Endpoint) Login(c *fiber.Ctx) error {
 		return c.Status(401).JSON(utils.RequestErr(utils.ERR_INVALID_CREDENTIALS, "Invalid Credentials"))
 	}
 
-	if !user.Verified {
+	if !user.IsEmailVerified {
 		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNVERIFIED_USER, "Verify your email first"))
 	}
 
@@ -82,6 +83,11 @@ func (endpoint Endpoint) Register(c *fiber.Ctx) error {
 		return c.Status(404).JSON(utils.RequestErr(utils.ERR_NETWORK_FAILURE, err.Message))
 	}
 
+	// Create Otp
+	otp := models.Otp{UserId: newUser.ID}
+	db.Take(&otp, otp)
+	db.Create(&otp)
+
 	response := schemas.RegisterResponseSchema{
 		ResponseSchema: SuccessResponse("Registration successful"),
 		Data:           schemas.EmailRequestSchema{Email: newUser.Email},
@@ -103,17 +109,24 @@ func (endpoint Endpoint) VerifyAccount(c *fiber.Ctx) error {
 		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INCORRECT_EMAIL, "Incorrect Email"))
 	}
 
-	if user.Verified {
+	if user.IsEmailVerified {
 		return c.Status(200).JSON(schemas.ResponseSchema{Message: "Email already verified"}.Init())
 	}
 
-	if user.VerificationCode != input.VerificationCode {
+	otp := models.Otp{UserId: user.ID}
+	db.Take(&otp, otp)
+	if otp.ID == uuid.Nil || otp.Code != uint32(input.VerificationCode) {
 		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INCORRECT_OTP, "Incorrect Otp"))
 	}
 
-	if err := userManager.SetAccountVerified(db, user); err != nil {
-		return c.Status(err.Code).JSON(utils.RequestErr(utils.ERR_SERVER_ERROR, err.Message))
+	if otp.CheckExpiration() {
+		return c.Status(400).JSON(utils.RequestErr(utils.ERR_EXPIRED_OTP, "Expired Otp"))
 	}
+
+	// Update User & Delete Otp
+	user.IsEmailVerified = true
+	db.Save(&user)
+	db.Delete(&otp)
 
 	return c.Status(200).JSON(SuccessResponse("Account verification successful"))
 }
@@ -188,7 +201,7 @@ func (endpoint Endpoint) SendMagicLink(c *fiber.Ctx) error {
 		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INVALID_OWNER, "User not found"))
 	}
 
-	if !user.Verified {
+	if !user.IsEmailVerified {
 		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNVERIFIED_USER, "Verify your email first"))
 	}
 
@@ -218,7 +231,7 @@ func (endpoint Endpoint) MagicLinkLogin(c *fiber.Ctx) error {
 		return c.Status(err.Code).JSON(utils.RequestErr(utils.ERR_SERVER_ERROR, err.Message))
 	}
 
-	if !user.Verified {
+	if !user.IsEmailVerified {
 		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNVERIFIED_USER, "Verify your email first"))
 	}
 

@@ -17,6 +17,7 @@ func Models() []interface{} {
 		&models.User{},
 		&models.Product{},
 		&models.Image{},
+		&models.Otp{},
 	}
 }
 
@@ -66,6 +67,12 @@ func ConnectDb(cfg config.Config, logs ...bool) *gorm.DB {
 	if len(logs) == 0 {
 		// When extra parameter is passed, don't do the following (from sockets)
 		log.Println("Running Migrations")
+
+		// Add UUID extension
+		result := db.Exec("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";")
+		if result.Error != nil {
+			log.Fatal("failed to create extension: " + result.Error.Error())
+		}
 		// Add Migrations
 		MakeMigrations(db)
 	}

@@ -5,7 +5,7 @@ import (
 )
 
 type Config struct {
-	EmailOtpExpireSeconds     int64  `mapstructure:"EMAIL_OTP_EXPIRE_SECONDS"`
+	EmailOtpExpireMins        int64  `mapstructure:"EMAIL_OTP_EXPIRE_MINS"`
 	AccessTokenExpireMinutes  int    `mapstructure:"ACCESS_TOKEN_EXPIRE_MINUTES"`
 	RefreshTokenExpireMinutes int    `mapstructure:"REFRESH_TOKEN_EXPIRE_MINUTES"`
 	Port                      string `mapstructure:"PORT"`
