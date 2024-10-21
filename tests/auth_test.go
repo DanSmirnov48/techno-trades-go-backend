@@ -5,6 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/DanSmirnov48/techno-trades-go-backend/database"
+	"github.com/DanSmirnov48/techno-trades-go-backend/models"
 	"github.com/DanSmirnov48/techno-trades-go-backend/schemas"
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
 	"github.com/gofiber/fiber/v2"
@@ -46,7 +48,8 @@ func login(t *testing.T, app *fiber.App, db *gorm.DB, baseUrl string) {
 		assert.Equal(t, "Verify your email first", body["message"])
 
 		// Test for valid credentials and verified email address
-		userManager.SetAccountVerified(db, user)
+		user.IsEmailVerified = true
+		db.Save(&user)
 		res = ProcessTestBody(t, app, url, "POST", loginData)
 		// Assert response
 		assert.Equal(t, 201, res.StatusCode)
@@ -99,12 +102,12 @@ func register(t *testing.T, app *fiber.App, baseUrl string) {
 func verifyAccount(t *testing.T, app *fiber.App, db *gorm.DB, baseUrl string) {
 	t.Run("Verify Account", func(t *testing.T) {
 		user := CreateTestUser(db)
-		otp := int64(111111)
+		otp := uint32(1111)
 
 		url := fmt.Sprintf("%s/verify-account", baseUrl)
 		emailOtpData := schemas.VerifyAccountRequestSchema{
-			Email:            user.Email,
-			VerificationCode: otp,
+			EmailRequestSchema: schemas.EmailRequestSchema{Email: user.Email},
+			Otp:                otp,
 		}
 
 		res := ProcessTestBody(t, app, url, "POST", emailOtpData)
@@ -120,7 +123,10 @@ func verifyAccount(t *testing.T, app *fiber.App, db *gorm.DB, baseUrl string) {
 		assert.Equal(t, "Incorrect Otp", body["message"])
 
 		// Verify that the email verification succeeds with a valid otp
-		emailOtpData.VerificationCode = user.VerificationCode
+		realOtp := models.Otp{UserId: user.ID}
+		db.Take(&realOtp, realOtp)
+		db.Save(&realOtp) // Create or save
+		emailOtpData.Otp = realOtp.Code
 		res = ProcessTestBody(t, app, url, "POST", emailOtpData)
 		assert.Equal(t, 200, res.StatusCode)
 
@@ -158,6 +164,6 @@ func TestAuth(t *testing.T) {
 	logout(t, app, BASEURL)
 
 	// Drop Tables and Close Connectiom
-	DropData(db)
+	database.DropTables(db)
 	CloseTestDatabase(db)
 }

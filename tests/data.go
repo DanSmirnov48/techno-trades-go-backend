@@ -7,36 +7,67 @@ import (
 	"github.com/DanSmirnov48/techno-trades-go-backend/models"
 	"github.com/DanSmirnov48/techno-trades-go-backend/schemas"
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 var (
-	userManager = managers.UserManager{}
+	productManager = managers.ProductManager{}
 )
 
-func CreateTestUser(db *gorm.DB) *models.User {
-	rndEmail := fmt.Sprintf("%s@example.com", utils.GetRandomString(10))
-
-	userData := schemas.RegisterUser{
+// AUTH
+func CreateTestUser(db *gorm.DB) models.User {
+	user := models.User{
 		FirstName: "Test",
 		LastName:  "User",
-		Email:     rndEmail,
+		Email:     "testuser@example.com",
 		Password:  "testpassword",
 	}
-	user := userManager.GetOrCreate(db, userData, false, false)
+	db.FirstOrCreate(&user, models.User{Email: user.Email})
+
+	user.IsEmailVerified = false
+	db.Save(&user)
+
 	return user
 }
 
-func CreateVerifiedTestUser(db *gorm.DB) *models.User {
-
-	rndEmail := fmt.Sprintf("testverifieduser%s@example.com", utils.GetRandomString(5))
-
-	userData := schemas.RegisterUser{
-		FirstName: "Test",
-		LastName:  "Verified",
-		Email:     rndEmail,
-		Password:  "testpassword",
+func CreateTestVerifiedUser(db *gorm.DB) models.User {
+	user := models.User{
+		FirstName:       "Test",
+		LastName:        "Verified",
+		Email:           "testverifieduser@example.com",
+		Password:        "testpassword",
+		IsEmailVerified: true,
 	}
-	user := userManager.GetOrCreate(db, userData, true, false)
+	db.FirstOrCreate(&user, models.User{Email: user.Email})
 	return user
+}
+
+func CreateVerifiedTestAdminUser(db *gorm.DB) models.User {
+	user := models.User{
+		FirstName:       "Test",
+		LastName:        "Verified",
+		Email:           "testverifieduser@example.com",
+		Password:        "testpassword",
+		IsEmailVerified: true,
+		Role:            models.AdminRole,
+	}
+	db.FirstOrCreate(&user, models.User{Email: user.Email})
+	return user
+}
+
+// PRODUCTS
+func CreateNewProduct(db *gorm.DB, userId uuid.UUID) *models.Product {
+	rndName := fmt.Sprintf("test_product_%s", utils.GetRandomString(10))
+	productData := schemas.CreateProduct{
+		Name:         rndName,
+		Brand:        "test_products",
+		Category:     "test_products",
+		Description:  "this is a product description blah blah blah",
+		Price:        100,
+		CountInStock: 100,
+		IsDiscounted: false,
+	}
+	newProduct, _ := productManager.Create(db, productData, userId)
+	return newProduct
 }

@@ -8,71 +8,77 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/DanSmirnov48/techno-trades-go-backend/config"
-	"github.com/DanSmirnov48/techno-trades-go-backend/models"
+	"github.com/DanSmirnov48/techno-trades-go-backend/database"
 	"github.com/DanSmirnov48/techno-trades-go-backend/routes"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
-func SetupTestDatabase() *gorm.DB {
-	var err error
-	var DB *gorm.DB
-	cfg := config.GetConfig()
-	dbUrlTemplate := "host=%s port=%s user=%s dbname=%s password=%s"
+func CreateSingleTable(db *gorm.DB, model interface{}) {
+	db.AutoMigrate(&model)
+}
+
+func DropAndCreateSingleTable(db *gorm.DB, model interface{}) {
+	db.Migrator().DropTable(&model)
+	db.AutoMigrate(&model)
+}
+
+func connectToTestDatabase(t *testing.T, dsn string) *gorm.DB {
+	t.Logf("Connecting to database....")
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		log.Fatal("Failed to connect to the database! \n", err.Error())
+		os.Exit(2)
+	}
+	t.Logf("Connected to the database successfully")
+	return db
+}
+
+func SetupTestDatabase(t *testing.T) *gorm.DB {
+	cfg := config.GetConfig(true)
 
 	dsn := fmt.Sprintf(
-		dbUrlTemplate,
+		"host=%s user=%s password=%s dbname=%s port=%s TimeZone=%s",
 		cfg.PostgresServer,
-		cfg.PostgresPort,
 		cfg.PostgresUser,
-		cfg.TestPostgresDB,
 		cfg.PostgresPassword,
+		cfg.TestPostgresDB,
+		cfg.PostgresPort,
+		"UTC",
 	)
-
-	DB, err = gorm.Open(postgres.Open(dsn))
-	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
-	}
-
-	fmt.Println("Database connection established")
-	return DB
-}
-
-func DropData(db *gorm.DB) {
-	if err := db.Migrator().DropTable(&models.User{}); err != nil {
-		log.Fatalf("Failed to drop table: %v", err)
-	}
-	log.Println("Test tables dropped successfully.")
-}
-
-func CreateTables(db *gorm.DB) {
-	if err := db.AutoMigrate(&models.User{}); err != nil {
-		log.Fatalf("Failed to create tables: %v", err)
-	}
-	log.Println("Test tables created successfully.")
+	return connectToTestDatabase(t, dsn)
 }
 
 func CloseTestDatabase(db *gorm.DB) {
-	sqlDB, _ := db.DB()
-
-	if err := sqlDB.Close(); err != nil {
-		log.Fatalf("Failed to close database connection: %v", err)
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatal("Failed to get database connection: " + err.Error())
 	}
-
-	log.Println("Test database connection closed successfully.")
+	if err := sqlDB.Close(); err != nil {
+		log.Fatal("Failed to close database connection: " + err.Error())
+	}
 }
 
 func Setup(t *testing.T, app *fiber.App) *gorm.DB {
+	os.Setenv("ENVIRONMENT", "TESTING")
+
 	// Set up the test database
-	db := SetupTestDatabase()
+	db := SetupTestDatabase(t)
+
 	routes.SetupRoutes(app, db)
-	DropData(db)
-	CreateTables(db)
+	t.Logf("Making Database Migrations....")
+	database.DropTables(db)
+	database.CreateTables(db)
+	t.Logf("Database Migrations Made successfully")
 	return db
 }
 
