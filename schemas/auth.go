@@ -21,8 +21,8 @@ type EmailRequestSchema struct {
 }
 
 type VerifyAccountRequestSchema struct {
-	Email            string `json:"email" validate:"required,min=5,email" example:"johndoe@example.com"`
-	VerificationCode int64  `json:"verification_code" validate:"required" example:"123456"`
+	EmailRequestSchema
+	Otp uint32 `json:"otp" validate:"required" example:"123456"`
 }
 
 type RefreshTokenRequestSchema struct {

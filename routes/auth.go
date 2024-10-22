@@ -1,10 +1,7 @@
 package routes
 
 import (
-	"fmt"
-
 	auth "github.com/DanSmirnov48/techno-trades-go-backend/authentication"
-	"github.com/DanSmirnov48/techno-trades-go-backend/config"
 	"github.com/DanSmirnov48/techno-trades-go-backend/managers"
 	"github.com/DanSmirnov48/techno-trades-go-backend/models"
 	"github.com/DanSmirnov48/techno-trades-go-backend/schemas"
@@ -14,22 +11,21 @@ import (
 )
 
 var (
-	cfg         = config.GetConfig()
 	userManager = managers.UserManager{}
 )
 
 func (endpoint Endpoint) Login(c *fiber.Ctx) error {
 	db := endpoint.DB
-	userLoginSchema := schemas.LoginSchema{}
+	reqData := schemas.LoginSchema{}
 
 	// Validate request
-	if errCode, errData := ValidateRequest(c, &userLoginSchema); errData != nil {
+	if errCode, errData := ValidateRequest(c, &reqData); errData != nil {
 		return c.Status(*errCode).JSON(errData)
 	}
 
-	// Check if the user exists and validate password
-	user, _ := userManager.GetByEmail(db, userLoginSchema.Email)
-	if user == nil || !user.ComparePassword(userLoginSchema.Password) {
+	user := models.User{Email: reqData.Email}
+	db.Take(&user, user)
+	if user.ID == uuid.Nil || !utils.CheckPasswordHash(reqData.Password, user.Password) {
 		return c.Status(401).JSON(utils.RequestErr(utils.ERR_INVALID_CREDENTIALS, "Invalid Credentials"))
 	}
 
@@ -47,7 +43,7 @@ func (endpoint Endpoint) Login(c *fiber.Ctx) error {
 
 	response := schemas.LoginResponseSchema{
 		ResponseSchema: SuccessResponse("Login successful"),
-		Data:           schemas.TokensResponseSchema{User: user, Access: access, Refresh: refresh},
+		Data:           schemas.TokensResponseSchema{User: &user, Access: access, Refresh: refresh},
 	}
 	return c.Status(201).JSON(response)
 }
@@ -62,14 +58,14 @@ func (endpoint Endpoint) Logout(c *fiber.Ctx) error {
 
 func (endpoint Endpoint) Register(c *fiber.Ctx) error {
 	db := endpoint.DB
-	user := schemas.RegisterUser{}
+	reqData := schemas.RegisterUser{}
 
 	// Validate request
-	if errCode, errData := ValidateRequest(c, &user); errData != nil {
+	if errCode, errData := ValidateRequest(c, &reqData); errData != nil {
 		return c.Status(*errCode).JSON(errData)
 	}
 
-	userByEmail, _ := userManager.GetByEmail(db, user.Email)
+	userByEmail, _ := userManager.GetByEmail(db, reqData.Email)
 	if userByEmail != nil {
 		data := map[string]string{
 			"email": "Email already registered!",
@@ -78,11 +74,7 @@ func (endpoint Endpoint) Register(c *fiber.Ctx) error {
 	}
 
 	// Create User
-	newUser, err := userManager.Create(db, user, false, false)
-	if err != nil {
-		return c.Status(404).JSON(utils.RequestErr(utils.ERR_NETWORK_FAILURE, err.Message))
-	}
-
+	newUser, _ := userManager.Create(db, reqData, false, false)
 	// Create Otp
 	otp := models.Otp{UserId: newUser.ID}
 	db.Take(&otp, otp)
@@ -97,25 +89,26 @@ func (endpoint Endpoint) Register(c *fiber.Ctx) error {
 
 func (endpoint Endpoint) VerifyAccount(c *fiber.Ctx) error {
 	db := endpoint.DB
-	input := schemas.VerifyAccountRequestSchema{}
+	reqData := schemas.VerifyAccountRequestSchema{}
 
 	// Validate request
-	if errCode, errData := ValidateRequest(c, &input); errData != nil {
+	if errCode, errData := ValidateRequest(c, &reqData); errData != nil {
 		return c.Status(*errCode).JSON(errData)
 	}
 
-	user, _ := userManager.GetByEmail(db, input.Email)
-	if user == nil {
+	user := models.User{Email: reqData.Email}
+	db.Take(&user, user)
+	if user.ID == uuid.Nil {
 		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INCORRECT_EMAIL, "Incorrect Email"))
 	}
 
 	if user.IsEmailVerified {
-		return c.Status(200).JSON(schemas.ResponseSchema{Message: "Email already verified"}.Init())
+		return c.Status(200).JSON(SuccessResponse("Email already verified"))
 	}
 
 	otp := models.Otp{UserId: user.ID}
 	db.Take(&otp, otp)
-	if otp.ID == uuid.Nil || otp.Code != uint32(input.VerificationCode) {
+	if otp.ID == uuid.Nil || otp.Code != reqData.Otp {
 		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INCORRECT_OTP, "Incorrect Otp"))
 	}
 
@@ -135,7 +128,6 @@ func (endpoint Endpoint) ValidateMe(c *fiber.Ctx) error {
 	db := endpoint.DB
 
 	accessToken := c.Cookies("accessToken")
-
 	if accessToken == "" {
 		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INVALID_TOKEN, "Invalid Token"))
 	}
@@ -156,7 +148,7 @@ func (endpoint Endpoint) ValidateMe(c *fiber.Ctx) error {
 }
 
 func (endpoint Endpoint) Refresh(c *fiber.Ctx) error {
-	refreshTokenSchema := schemas.RefreshTokenRequestSchema{}
+	reqData := schemas.RefreshTokenRequestSchema{}
 
 	user, ok := c.Locals("user").(*models.User)
 	if !ok || user == nil {
@@ -164,11 +156,11 @@ func (endpoint Endpoint) Refresh(c *fiber.Ctx) error {
 	}
 
 	// Validate request
-	if errCode, errData := ValidateRequest(c, &refreshTokenSchema); errData != nil {
+	if errCode, errData := ValidateRequest(c, &reqData); errData != nil {
 		return c.Status(*errCode).JSON(errData)
 	}
 
-	token := refreshTokenSchema.Refresh
+	token := reqData.Refresh
 	if !auth.DecodeRefreshToken(token) {
 		return c.Status(401).JSON(utils.RequestErr(utils.ERR_INVALID_TOKEN, "Refresh token is invalid or expired"))
 	}
@@ -183,70 +175,6 @@ func (endpoint Endpoint) Refresh(c *fiber.Ctx) error {
 
 	response := schemas.LoginResponseSchema{
 		ResponseSchema: SuccessResponse("Tokens refresh successful"),
-		Data:           schemas.TokensResponseSchema{User: user, Access: access, Refresh: refresh},
-	}
-	return c.Status(201).JSON(response)
-}
-
-func (endpoint Endpoint) SendMagicLink(c *fiber.Ctx) error {
-	db := endpoint.DB
-	emailSchema := schemas.EmailRequestSchema{}
-
-	// Validate request
-	if errCode, errData := ValidateRequest(c, &emailSchema); errData != nil {
-		return c.Status(*errCode).JSON(errData)
-	}
-	user, _ := userManager.GetByEmail(db, emailSchema.Email)
-	if user == nil {
-		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INVALID_OWNER, "User not found"))
-	}
-
-	if !user.IsEmailVerified {
-		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNVERIFIED_USER, "Verify your email first"))
-	}
-
-	token, err := user.CreateMagicLogInLinkToken()
-	if err != nil {
-		return c.Status(500).JSON(utils.RequestErr(utils.ERR_NETWORK_FAILURE, "Failed to generate magic login token"))
-	}
-
-	db.Save(&user)
-
-	magicLink := fmt.Sprintf("%s/login/%s", cfg.FrontendURL, token)
-
-	response := schemas.MagicLinkLoginResponseSchema{
-		ResponseSchema: SuccessResponse("MagicLink has been sent"),
-		Data:           schemas.MagicLinkResponseSchema{Link: magicLink},
-	}
-	return c.Status(200).JSON(response)
-}
-
-func (endpoint Endpoint) MagicLinkLogin(c *fiber.Ctx) error {
-	db := endpoint.DB
-
-	token := c.Params("token")
-
-	user, err := userManager.GetByMagicLoginToken(db, token)
-	if err != nil {
-		return c.Status(err.Code).JSON(utils.RequestErr(utils.ERR_SERVER_ERROR, err.Message))
-	}
-
-	if !user.IsEmailVerified {
-		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNVERIFIED_USER, "Verify your email first"))
-	}
-
-	userManager.ClearMagicLogin(db, user)
-
-	// Create Auth Tokens
-	access := auth.GenerateAccessToken(user.ID)
-	refresh := auth.GenerateRefreshToken()
-
-	// Set the access token and refresh token cookies
-	auth.SetAuthCookie(c, auth.AccessToken, access)
-	auth.SetAuthCookie(c, auth.RefreshToken, refresh)
-
-	response := schemas.LoginResponseSchema{
-		ResponseSchema: SuccessResponse("Logged in successfully"),
 		Data:           schemas.TokensResponseSchema{User: user, Access: access, Refresh: refresh},
 	}
 	return c.Status(201).JSON(response)

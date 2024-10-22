@@ -5,7 +5,6 @@ import (
 
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
 	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -17,64 +16,33 @@ const (
 )
 
 type User struct {
-	ID                     uuid.UUID `gorm:"type:uuid;primaryKey"`
-	FirstName              string    `gorm:"size:100;not null"`
-	LastName               string    `gorm:"size:100;not null"`
-	Email                  string    `gorm:"size:100;unique;not null"`
-	Role                   Role      `gorm:"size:50;not null"`
-	Password               string    `gorm:"size:255;not null"`
-	Active                 bool      `gorm:"default:true"`
-	IsEmailVerified        bool      `gorm:"default:false"`
-	MagicLogInToken        string    `gorm:"size:255"`
-	MagicLogInTokenExpires time.Time
-	Products               []Product `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE;"`
-	CreatedAt              time.Time
-	UpdatedAt              time.Time
-	DeletedAt              gorm.DeletedAt `gorm:"index"`
-}
-
-func (u *User) ComparePassword(plainPassword string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(plainPassword))
-	return err == nil
+	ID              uuid.UUID      `json:"id,omitempty" gorm:"type:uuid;primarykey;not null;default:uuid_generate_v4()" example:"d10dde64-a242-4ed0-bd75-4c759644b3a6"`
+	FirstName       string         `json:"first_name" gorm:"type: varchar(255);not null" example:"John"`
+	LastName        string         `json:"last_name" gorm:"type: varchar(255);not null" example:"Doe"`
+	Email           string         `json:"email" gorm:"not null;unique;" example:"johndoe@email.com"`
+	Password        string         `json:"-" gorm:"not null"`
+	IsEmailVerified bool           `json:"-" gorm:"default:false"`
+	Role            Role           `json:"role" gorm:"size:50;not null"`
+	Active          bool           `json:"-" gorm:"default:true"`
+	Products        []Product      `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE;"`
+	CreatedAt       time.Time      `json:"created_at" gorm:"not null"`
+	UpdatedAt       time.Time      `json:"updated_at" gorm:"not null"`
+	DeletedAt       gorm.DeletedAt `gorm:"index"`
 }
 
 func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
-	u.ID = uuid.New()
-	u.CreatedAt = time.Now()
-
 	if u.Role == "" {
 		u.Role = UserRole
 	}
 
-	// Hash the password before storing it
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return err
-	}
-	u.Password = string(hashedPassword)
+	// Hash password
+	u.Password = utils.HashPassword(u.Password)
 	return
 }
 
 func (u *User) BeforeUpdate(tx *gorm.DB) (err error) {
 	if tx.Statement.Changed("Password") {
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
-		if err != nil {
-			return err
-		}
-		tx.Statement.SetColumn("Password", string(hashedPassword))
+		tx.Statement.SetColumn("Password", utils.HashPassword(u.Password))
 	}
 	return nil
-}
-
-func (u *User) CreateMagicLogInLinkToken() (string, error) {
-	token, err := utils.GenerateRandomToken(32, false)
-	if err != nil {
-		return "", err
-	}
-
-	// Set the token and expiration time.
-	u.MagicLogInToken = token
-	u.MagicLogInTokenExpires = time.Now().Add(10 * time.Minute)
-
-	return token, nil
 }

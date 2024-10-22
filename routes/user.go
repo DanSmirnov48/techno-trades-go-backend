@@ -142,7 +142,7 @@ func (endpoint Endpoint) UpdateSignedInUserPassword(c *fiber.Ctx) error {
 		return c.Status(*errCode).JSON(errData)
 	}
 
-	if !user.ComparePassword(passwordSchema.CurrentPassword) {
+	if !utils.CheckPasswordHash(passwordSchema.CurrentPassword, user.Password) {
 		return c.Status(401).JSON(utils.RequestErr(utils.ERR_INVALID_CREDENTIALS, "Current password is incorrect"))
 	}
 
