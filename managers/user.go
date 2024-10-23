@@ -3,6 +3,7 @@ package managers
 import (
 	"github.com/DanSmirnov48/techno-trades-go-backend/models"
 	"github.com/DanSmirnov48/techno-trades-go-backend/schemas"
+	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -47,25 +48,13 @@ func (obj UserManager) GetByEmail(db *gorm.DB, email string) (*models.User, *fib
 	return &user, nil
 }
 
-func (obj UserManager) Create(db *gorm.DB, userSchema schemas.RegisterUser, isEmailVerified bool, isAdmin bool) (*models.User, *fiber.Error) {
-
-	role := models.UserRole
+func (obj UserManager) Create(db *gorm.DB, data schemas.RegisterUser, isEmailVerified bool, isAdmin bool) *models.User {
+	newUser := utils.ConvertStructData(data, models.User{}).(*models.User)
+	newUser.IsEmailVerified = isEmailVerified
+	newUser.ID = uuid.New()
 	if isAdmin {
-		role = models.AdminRole
+		newUser.Role = models.AdminRole
 	}
-
-	newUser := models.User{
-		FirstName:       userSchema.FirstName,
-		LastName:        userSchema.LastName,
-		Email:           userSchema.Email,
-		Password:        userSchema.Password,
-		IsEmailVerified: isEmailVerified,
-		Role:            role,
-	}
-
-	if err := db.Create(&newUser).Error; err != nil {
-		return nil, fiber.NewError(fiber.StatusInternalServerError, "Could not create user")
-	}
-
-	return &newUser, nil
+	db.Create(&newUser)
+	return newUser
 }

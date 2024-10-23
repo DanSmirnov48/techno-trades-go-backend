@@ -4,41 +4,30 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
 	"github.com/DanSmirnov48/techno-trades-go-backend/models"
 	"github.com/DanSmirnov48/techno-trades-go-backend/schemas"
+	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
 )
 
 // ----------------------------------
-// USER MANAGEMENT
+// PRODUCT MANAGEMENT
 // --------------------------------
 type ProductManager struct{}
 
-func (obj ProductManager) Create(db *gorm.DB, productSchema schemas.CreateProduct, userId uuid.UUID) (*models.Product, *fiber.Error) {
-	product := models.Product{
-		ID:              uuid.New(),
-		Name:            productSchema.Name,
-		Slug:            slug.Make(productSchema.Name),
-		Brand:           productSchema.Brand,
-		Category:        productSchema.Category,
-		Description:     productSchema.Description,
-		Rating:          0,
-		Price:           productSchema.Price,
-		CountInStock:    productSchema.CountInStock,
-		IsDiscounted:    productSchema.IsDiscounted,
-		DiscountedPrice: productSchema.DiscountedPrice,
-		UserID:          userId,
-	}
+func (obj ProductManager) Create(db *gorm.DB, data schemas.CreateProduct, userId uuid.UUID) *models.Product {
+	product := utils.ConvertStructData(data, models.Product{}).(*models.Product)
+	product.ID = uuid.New()
+	product.Slug = slug.Make(product.Name)
+	product.Rating = 0
+	product.UserID = userId
 
-	if err := db.Create(&product).Error; err != nil {
-		return nil, fiber.NewError(fiber.StatusInternalServerError, "Could not create user")
-	}
+	db.Create(&product)
 
-	return &product, nil
+	return product
 }
 
 func (obj ProductManager) DropData(db *gorm.DB) error {

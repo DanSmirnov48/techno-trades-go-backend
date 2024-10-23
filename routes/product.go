@@ -9,6 +9,7 @@ import (
 	"github.com/DanSmirnov48/techno-trades-go-backend/schemas"
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 )
 
 var (
@@ -29,9 +30,9 @@ func (endpoint Endpoint) CreateNewProduct(c *fiber.Ctx) error {
 		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNAUTHORIZED_USER, "Unauthorized Access"))
 	}
 
-	newProduct, err := productManager.Create(db, createProductSchema, user.ID)
-	if err != nil {
-		return c.Status(404).JSON(utils.RequestErr(utils.ERR_NETWORK_FAILURE, err.Message))
+	newProduct := productManager.Create(db, createProductSchema, user.ID)
+	if newProduct.ID == uuid.Nil {
+		return c.Status(404).JSON(utils.RequestErr(utils.ERR_NETWORK_FAILURE, "Error creating product"))
 	}
 
 	data, _ := json.MarshalIndent(&newProduct, "", "  ")

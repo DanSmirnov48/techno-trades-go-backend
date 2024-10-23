@@ -68,6 +68,6 @@ func CreateNewProduct(db *gorm.DB, userId uuid.UUID) *models.Product {
 		CountInStock: 100,
 		IsDiscounted: false,
 	}
-	newProduct, _ := productManager.Create(db, productData, userId)
+	newProduct := productManager.Create(db, productData, userId)
 	return newProduct
 }

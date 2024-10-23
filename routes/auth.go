@@ -74,7 +74,11 @@ func (endpoint Endpoint) Register(c *fiber.Ctx) error {
 	}
 
 	// Create User
-	newUser, _ := userManager.Create(db, reqData, false, false)
+	newUser := userManager.Create(db, reqData, false, false)
+	if newUser.ID == uuid.Nil {
+		return c.Status(404).JSON(utils.RequestErr(utils.ERR_NETWORK_FAILURE, "Error creating user"))
+	}
+
 	// Create Otp
 	otp := models.Otp{UserId: newUser.ID}
 	db.Take(&otp, otp)
