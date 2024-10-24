@@ -18,6 +18,7 @@ func Models() []interface{} {
 		&models.Product{},
 		&models.Image{},
 		&models.Otp{},
+		&models.Review{},
 	}
 }
 
