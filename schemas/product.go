@@ -23,3 +23,12 @@ type ProductCreateResponseSchema struct {
 	ResponseSchema
 	Data NewProductResponseSchema `json:"data"`
 }
+
+type FindManyProductsResponseSchem struct {
+	Products []*models.Product `json:"products"`
+	Length   int               `json:"length"`
+}
+
+type FindSingleProductResponseSchem struct {
+	Product *models.Product `json:"product"`
+}

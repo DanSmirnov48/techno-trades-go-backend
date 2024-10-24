@@ -44,3 +44,44 @@ func (endpoint Endpoint) CreateNewProduct(c *fiber.Ctx) error {
 	}
 	return c.Status(201).JSON(response)
 }
+
+func (endpoint Endpoint) GetAllProducts(c *fiber.Ctx) error {
+	db := endpoint.DB
+
+	products, errCode, errData := productManager.GetAll(db)
+	if errCode != nil {
+		return c.Status(*errCode).JSON(errData)
+	}
+
+	response := schemas.FindManyProductsResponseSchem{Products: products, Length: len(products)}
+	return c.Status(201).JSON(response)
+}
+
+func (endpoint Endpoint) FindProductById(c *fiber.Ctx) error {
+	db := endpoint.DB
+	productId, err := utils.ParseUUID(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(err)
+	}
+
+	product, errCode, errData := productManager.GetById(db, *productId)
+	if errCode != nil {
+		return c.Status(*errCode).JSON(errData)
+	}
+
+	response := schemas.FindSingleProductResponseSchem{Product: product}
+	return c.Status(201).JSON(response)
+}
+
+func (endpoint Endpoint) FindProductBySlug(c *fiber.Ctx) error {
+	db := endpoint.DB
+	slug := c.Params("slug")
+
+	product, errCode, errData := productManager.GetBySlug(db, slug)
+	if errCode != nil {
+		return c.Status(*errCode).JSON(errData)
+	}
+
+	response := schemas.FindSingleProductResponseSchem{Product: product}
+	return c.Status(201).JSON(response)
+}

@@ -49,4 +49,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// Product Routes (1)
 	products := api.Group("/products")
 	products.Post("/new", midw.AuthMiddleware, midw.Admin, endpoint.CreateNewProduct)
+	products.Get("/:slug", endpoint.FindProductBySlug)
+	products.Get("/:id", endpoint.FindProductById)
+	products.Get("/", endpoint.GetAllProducts)
 }
