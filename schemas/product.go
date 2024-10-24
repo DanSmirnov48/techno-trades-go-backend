@@ -32,3 +32,12 @@ type FindManyProductsResponseSchem struct {
 type FindSingleProductResponseSchem struct {
 	Product *models.Product `json:"product"`
 }
+
+type UpdateDiscount struct {
+	IsDiscounted    bool    `json:"is_discounted"`
+	DiscountedPrice float64 `json:"discounted_price" validate:"discounted_price_valid" example:"299.99"`
+}
+
+type UpdateStockSchema struct {
+	StockChange int `json:"stock_change" validate:"required" example:"10"`
+}

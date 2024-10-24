@@ -63,6 +63,69 @@ func (obj ProductManager) GetBySlug(db *gorm.DB, slug string) (*models.Product, 
 	return &product, nil, nil
 }
 
+func (obj ProductManager) UpdateDiscount(db *gorm.DB, id uuid.UUID, data schemas.UpdateDiscount) (*models.Product, *int, *utils.ErrorResponse) {
+	product := models.Product{ID: id}
+	db.Take(&product, product)
+	if product.ID == uuid.Nil {
+		status_code := 404
+		errData := utils.RequestErr(utils.ERR_NON_EXISTENT, "Product does not exist")
+		return nil, &status_code, &errData
+	}
+
+	if data.DiscountedPrice >= product.Price {
+		statusCode := 400
+		errData := utils.RequestErr(utils.ERR_INVALID_ENTRY, "Discounted price has to be lower than original!")
+		return nil, &statusCode, &errData
+	}
+
+	product.IsDiscounted = data.IsDiscounted
+	if data.IsDiscounted {
+		product.DiscountedPrice = data.DiscountedPrice
+	} else {
+		product.DiscountedPrice = 0.0
+	}
+
+	if err := db.Save(product).Error; err != nil {
+		statusCode := 500
+		errData := utils.RequestErr(utils.ERR_NETWORK_FAILURE, "Failed to update product discount")
+		return nil, &statusCode, &errData
+	}
+
+	return &product, nil, nil
+}
+
+func (pm ProductManager) UpdateStock(db *gorm.DB, id uuid.UUID, stockChange int) (*models.Product, *int, *utils.ErrorResponse) {
+	product := models.Product{ID: id}
+	db.Take(&product, product)
+	if product.ID == uuid.Nil {
+		status_code := 404
+		errData := utils.RequestErr(utils.ERR_NON_EXISTENT, "Product does not exist")
+		return nil, &status_code, &errData
+	}
+
+	// Calculate the new stock value
+	newStock := product.CountInStock + stockChange
+
+	// Ensure the stock doesn't fall below zero
+	if newStock < 0 {
+		statusCode := 400
+		errData := utils.RequestErr(utils.ERR_INVALID_ENTRY, "Insufficient stock to complete the operation")
+		return nil, &statusCode, &errData
+	}
+
+	// Update product stock
+	product.CountInStock = newStock
+
+	// Save the updated product in the database
+	if err := db.Save(product).Error; err != nil {
+		statusCode := 500
+		errData := utils.RequestErr(utils.ERR_SERVER_ERROR, "Failed to update product stock")
+		return nil, &statusCode, &errData
+	}
+
+	return &product, nil, nil
+}
+
 func (obj ProductManager) DropData(db *gorm.DB) error {
 	// Use the GORM Migrator to drop the User table
 	if err := db.Migrator().DropTable(&models.Product{}); err != nil {

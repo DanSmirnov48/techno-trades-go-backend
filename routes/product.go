@@ -85,3 +85,53 @@ func (endpoint Endpoint) FindProductBySlug(c *fiber.Ctx) error {
 	response := schemas.FindSingleProductResponseSchem{Product: product}
 	return c.Status(201).JSON(response)
 }
+
+func (endpoint Endpoint) SetProductDiscount(c *fiber.Ctx) error {
+	db := endpoint.DB
+	reqData := schemas.UpdateDiscount{}
+
+	productId, err := utils.ParseUUID(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(err)
+	}
+
+	if errCode, errData := ValidateRequest(c, &reqData); errData != nil {
+		return c.Status(*errCode).JSON(errData)
+	}
+
+	updatedProduct, errCode, errData := productManager.UpdateDiscount(db, *productId, reqData)
+	if errCode != nil {
+		return c.Status(*errCode).JSON(errData)
+	}
+
+	response := schemas.ProductCreateResponseSchema{
+		ResponseSchema: SuccessResponse("Discount Updated successfully"),
+		Data:           schemas.NewProductResponseSchema{Product: updatedProduct},
+	}
+	return c.Status(201).JSON(response)
+}
+
+func (endpoint Endpoint) UpdateProductStock(c *fiber.Ctx) error {
+	db := endpoint.DB
+	reqData := schemas.UpdateStockSchema{}
+
+	productId, err := utils.ParseUUID(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(err)
+	}
+
+	if errCode, errData := ValidateRequest(c, &reqData); errData != nil {
+		return c.Status(*errCode).JSON(errData)
+	}
+
+	updatedProduct, errCode, errData := productManager.UpdateStock(db, *productId, reqData.StockChange)
+	if errCode != nil {
+		return c.Status(*errCode).JSON(errData)
+	}
+
+	response := schemas.ProductCreateResponseSchema{
+		ResponseSchema: SuccessResponse("Stock updated successfully"),
+		Data:           schemas.NewProductResponseSchema{Product: updatedProduct},
+	}
+	return c.Status(200).JSON(response)
+}
