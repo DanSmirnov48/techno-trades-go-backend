@@ -71,13 +71,12 @@ func DecodeAccessToken(token string, db *gorm.DB) (*models.User, *string) {
 	// Fetch User model object
 	userId := claims.UserId
 
-	var user *models.User
-	db.Where(&models.User{ID: userId}).First(&user)
-
-	if user == nil {
+	user := models.User{ID: userId}
+	result := db.Where(user).First(&user)
+	if result.Error != nil {
 		return nil, &tokenErr
 	}
-	return user, nil
+	return &user, nil
 }
 
 func GenerateRefreshToken() string {

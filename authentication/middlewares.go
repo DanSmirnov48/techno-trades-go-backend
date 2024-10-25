@@ -32,11 +32,11 @@ func (mid Middleware) AuthMiddleware(c *fiber.Ctx) error {
 	db := mid.DB
 
 	if len(token) < 1 {
-		return c.Status(401).JSON("Unauthorized User!")
+		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNAUTHORIZED_USER, "Unauthorized User!"))
 	}
 	user, err := GetUser(token, db)
 	if err != nil {
-		return c.Status(401).JSON(*err)
+		return c.Status(401).JSON(utils.RequestErr(utils.ERR_INVALID_TOKEN, *err))
 	}
 	c.Locals("user", user)
 	return c.Next()

@@ -12,11 +12,6 @@ import (
 func (endpoint Endpoint) GetAllUsers(c *fiber.Ctx) error {
 	db := endpoint.DB
 
-	user, ok := c.Locals("user").(*models.User)
-	if !ok || user == nil || user.Role != models.AdminRole {
-		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNAUTHORIZED_USER, "Unauthorized Access"))
-	}
-
 	users, _ := userManager.GetAll(db)
 	if users == nil {
 		return c.Status(404).JSON(utils.RequestErr(utils.ERR_NON_EXISTENT, "Users not found"))
@@ -130,12 +125,8 @@ func (endpoint Endpoint) ResetUserForgottenPassword(c *fiber.Ctx) error {
 
 func (endpoint Endpoint) UpdateSignedInUserPassword(c *fiber.Ctx) error {
 	db := endpoint.DB
+	user := RequestUser(c)
 	passwordSchema := schemas.UpdateUserPasswordRequestSchema{}
-
-	user, ok := c.Locals("user").(*models.User)
-	if !ok || user == nil {
-		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNAUTHORIZED_USER, "Unauthorized Access"))
-	}
 
 	// Validate request
 	if errCode, errData := ValidateRequest(c, &passwordSchema); errData != nil {
@@ -154,11 +145,7 @@ func (endpoint Endpoint) UpdateSignedInUserPassword(c *fiber.Ctx) error {
 
 func (endpoint Endpoint) SendUserEmailChangeOtp(c *fiber.Ctx) error {
 	db := endpoint.DB
-
-	user, ok := c.Locals("user").(*models.User)
-	if !ok || user == nil {
-		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNAUTHORIZED_USER, "Unauthorized Access"))
-	}
+	user := RequestUser(c)
 
 	if !user.IsEmailVerified {
 		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNVERIFIED_USER, "Verify your email first"))
@@ -178,12 +165,8 @@ func (endpoint Endpoint) SendUserEmailChangeOtp(c *fiber.Ctx) error {
 
 func (endpoint Endpoint) UpdateUserEmail(c *fiber.Ctx) error {
 	db := endpoint.DB
+	user := RequestUser(c)
 	emailSchema := schemas.UpdateUserEmailRequestSchema{}
-
-	user, ok := c.Locals("user").(*models.User)
-	if !ok || user == nil {
-		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNAUTHORIZED_USER, "Unauthorized Access"))
-	}
 
 	if !user.IsEmailVerified {
 		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNVERIFIED_USER, "Verify your email first"))
@@ -209,11 +192,7 @@ func (endpoint Endpoint) UpdateUserEmail(c *fiber.Ctx) error {
 
 func (endpoint Endpoint) DeleteMe(c *fiber.Ctx) error {
 	db := endpoint.DB
-
-	user, ok := c.Locals("user").(*models.User)
-	if !ok || user == nil {
-		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNAUTHORIZED_USER, "Unauthorized Access"))
-	}
+	user := RequestUser(c)
 
 	if err := db.Delete(&user).Error; err != nil {
 		return c.Status(401).JSON(utils.RequestErr(utils.ERR_SERVER_ERROR, "Could not delete user"))
@@ -224,12 +203,8 @@ func (endpoint Endpoint) DeleteMe(c *fiber.Ctx) error {
 
 func (endpoint Endpoint) UpdateMe(c *fiber.Ctx) error {
 	db := endpoint.DB
+	user := RequestUser(c)
 	updateMeSchema := schemas.UpdateUserRequestSchema{}
-
-	user, ok := c.Locals("user").(*models.User)
-	if !ok || user == nil {
-		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNAUTHORIZED_USER, "Unauthorized Access"))
-	}
 
 	// Validate request
 	if errCode, errData := ValidateRequest(c, &updateMeSchema); errData != nil {

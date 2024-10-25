@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/DanSmirnov48/techno-trades-go-backend/managers"
-	"github.com/DanSmirnov48/techno-trades-go-backend/models"
 	"github.com/DanSmirnov48/techno-trades-go-backend/schemas"
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
 	"github.com/gofiber/fiber/v2"
@@ -19,16 +18,12 @@ var (
 
 func (endpoint Endpoint) CreateNewProduct(c *fiber.Ctx) error {
 	db := endpoint.DB
+	user := RequestUser(c)
 	createProductSchema := schemas.CreateProduct{}
 
 	// Validate request
 	if errCode, errData := ValidateRequest(c, &createProductSchema); errData != nil {
 		return c.Status(*errCode).JSON(errData)
-	}
-
-	user, ok := c.Locals("user").(*models.User)
-	if !ok || user == nil || user.Role != models.AdminRole {
-		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNAUTHORIZED_USER, "Unauthorized Access"))
 	}
 
 	newProduct := productManager.Create(db, createProductSchema, user.ID)

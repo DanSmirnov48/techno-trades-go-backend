@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/DanSmirnov48/techno-trades-go-backend/models"
 	"github.com/DanSmirnov48/techno-trades-go-backend/schemas"
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
 	"github.com/gofiber/fiber/v2"
@@ -94,4 +95,8 @@ func ValidateRequest(c *fiber.Ctx, data interface{}) (*int, *utils.ErrorResponse
 
 func SuccessResponse(message string) schemas.ResponseSchema {
 	return schemas.ResponseSchema{Status: "success", Message: message}
+}
+
+func RequestUser(c *fiber.Ctx) *models.User {
+	return c.Locals("user").(*models.User)
 }

@@ -154,10 +154,7 @@ func (endpoint Endpoint) ValidateMe(c *fiber.Ctx) error {
 func (endpoint Endpoint) Refresh(c *fiber.Ctx) error {
 	reqData := schemas.RefreshTokenRequestSchema{}
 
-	user, ok := c.Locals("user").(*models.User)
-	if !ok || user == nil {
-		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNAUTHORIZED_USER, "Unauthorized Access"))
-	}
+	user := RequestUser(c)
 
 	// Validate request
 	if errCode, errData := ValidateRequest(c, &reqData); errData != nil {
