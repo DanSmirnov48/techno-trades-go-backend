@@ -14,6 +14,15 @@ type CreateProduct struct {
 	DiscountedPrice float64 `json:"discounted_price" validate:"discounted_price_valid" example:"299.99"`
 }
 
+type UpdateProduct struct {
+	Name         string  `json:"name" validate:"max=50" example:"Sony PlayStation 5"`
+	Brand        string  `json:"brand" validate:"max=50" example:"Sony"`
+	Category     string  `json:"category" validate:"max=50" example:"consoles"`
+	Description  string  `json:"description" validate:"max=500" example:"some item description"`
+	Price        float64 `json:"price" validate:"min=0" example:"399.99"`
+	CountInStock int     `json:"stock" validate:"min=0" example:"100"`
+}
+
 // RESPONSE BODY SCHEMAS
 type NewProductResponseSchema struct {
 	Product *models.Product `json:"product"`

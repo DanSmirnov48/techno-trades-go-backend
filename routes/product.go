@@ -10,6 +10,7 @@ import (
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"github.com/gosimple/slug"
 )
 
 var (
@@ -134,4 +135,52 @@ func (endpoint Endpoint) UpdateProductStock(c *fiber.Ctx) error {
 		Data:           schemas.NewProductResponseSchema{Product: updatedProduct},
 	}
 	return c.Status(200).JSON(response)
+}
+
+func (endpoint Endpoint) UpdateProductDetails(c *fiber.Ctx) error {
+	db := endpoint.DB
+	reqData := schemas.UpdateProduct{}
+
+	productId, err := utils.ParseUUID(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(err)
+	}
+
+	if errCode, errData := ValidateRequest(c, &reqData); errData != nil {
+		return c.Status(*errCode).JSON(errData)
+	}
+
+	product, errCode, errData := productManager.GetById(db, *productId)
+	if errCode != nil {
+		return c.Status(*errCode).JSON(errData)
+	}
+
+	if reqData.Name != product.Name {
+		product.Slug = slug.Make(reqData.Name)
+	}
+	db.Model(&product).Updates(reqData)
+
+	response := schemas.ProductCreateResponseSchema{
+		ResponseSchema: SuccessResponse("Stock updated successfully"),
+		Data:           schemas.NewProductResponseSchema{Product: product},
+	}
+	return c.Status(200).JSON(response)
+}
+
+func (endpoint Endpoint) DeleteProduct(c *fiber.Ctx) error {
+	db := endpoint.DB
+
+	productId, err := utils.ParseUUID(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(err)
+	}
+
+	product, errCode, errData := productManager.GetById(db, *productId)
+	if errCode != nil {
+		return c.Status(*errCode).JSON(errData)
+	}
+
+	db.Delete(&product)
+
+	return c.Status(200).JSON(SuccessResponse("Product deleted successfully"))
 }

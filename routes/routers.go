@@ -46,14 +46,18 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	users.Get("/", midw.AuthMiddleware, midw.Admin, endpoint.GetAllUsers)
 
 	// ### -----------------------PRODUCTS-----------------------
-	// Product Routes (6)
+	// Product Routes (8)
 	products := api.Group("/products")
-	products.Post("/new", midw.AuthMiddleware, midw.Admin, endpoint.CreateNewProduct)
 	products.Get("/:slug", endpoint.FindProductBySlug)
 	products.Get("/:id", endpoint.FindProductById)
 	products.Get("/", endpoint.GetAllProducts)
-	products.Patch("/:id/update-discount", midw.AuthMiddleware, midw.Admin, endpoint.SetProductDiscount)
-	products.Patch("/:id/update-stock", midw.AuthMiddleware, midw.Admin, endpoint.UpdateProductStock)
+
+	admin_products := api.Group("/products", midw.AuthMiddleware, midw.Admin)
+	admin_products.Post("/new", endpoint.CreateNewProduct)
+	admin_products.Patch("/:id/update", endpoint.UpdateProductDetails)
+	admin_products.Delete("/:id/delete", endpoint.DeleteProduct)
+	admin_products.Patch("/:id/update-discount", endpoint.SetProductDiscount)
+	admin_products.Patch("/:id/update-stock", endpoint.UpdateProductStock)
 
 	// ### -----------------------REVIEWS-----------------------
 	// Reviews Routes (1)
