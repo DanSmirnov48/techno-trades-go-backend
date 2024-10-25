@@ -38,6 +38,12 @@ func (obj ReviewManager) Create(db *gorm.DB, data schemas.CreateReview, userId, 
 		return nil, &statusCode, &errData
 	}
 
+	// Update product's rating using ProductManager
+	productManager := ProductManager{}
+	if _, errCode, errData := productManager.UpdateRating(db, productId); errCode != nil {
+		return nil, errCode, errData
+	}
+
 	// Retrieve the newly created review with User and Product populated
 	if err := db.Preload(clause.Associations).Take(&review).Error; err != nil {
 		statusCode := 500

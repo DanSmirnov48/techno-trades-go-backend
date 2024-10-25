@@ -41,6 +41,7 @@ func (obj ProductManager) GetAll(db *gorm.DB) ([]*models.Product, *int, *utils.E
 
 	return products, nil, nil
 }
+
 func (obj ProductManager) GetById(db *gorm.DB, id uuid.UUID) (*models.Product, *int, *utils.ErrorResponse) {
 	product := models.Product{ID: id}
 	db.Take(&product, product)
@@ -120,6 +121,45 @@ func (pm ProductManager) UpdateStock(db *gorm.DB, id uuid.UUID, stockChange int)
 	if err := db.Save(product).Error; err != nil {
 		statusCode := 500
 		errData := utils.RequestErr(utils.ERR_SERVER_ERROR, "Failed to update product stock")
+		return nil, &statusCode, &errData
+	}
+
+	return &product, nil, nil
+}
+
+func (obj ProductManager) UpdateRating(db *gorm.DB, productId *uuid.UUID) (*models.Product, *int, *utils.ErrorResponse) {
+	// Fetch all reviews for the product
+	var reviews []models.Review
+	if err := db.Where("product_id = ?", productId).Find(&reviews).Error; err != nil {
+		statusCode := 500
+		errData := utils.RequestErr(utils.ERR_NETWORK_FAILURE, "Failed to fetch reviews for product")
+		return nil, &statusCode, &errData
+	}
+
+	// Calculate the average rating
+	var totalRating int
+	for _, review := range reviews {
+		totalRating += review.Rating
+	}
+
+	// If there are reviews, calculate the average
+	var averageRating float64
+	if len(reviews) > 0 {
+		averageRating = float64(totalRating) / float64(len(reviews))
+	}
+
+	// Update the product with the new average rating
+	var product models.Product
+	if err := db.Model(&product).Where("id = ?", productId).Update("rating", averageRating).Error; err != nil {
+		statusCode := 500
+		errData := utils.RequestErr(utils.ERR_NETWORK_FAILURE, "Failed to update product rating")
+		return nil, &statusCode, &errData
+	}
+
+	// Fetch the updated product
+	if err := db.Take(&product, productId).Error; err != nil {
+		statusCode := 500
+		errData := utils.RequestErr(utils.ERR_NETWORK_FAILURE, "Failed to retrieve updated product")
 		return nil, &statusCode, &errData
 	}
 
