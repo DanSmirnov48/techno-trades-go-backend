@@ -58,6 +58,91 @@ func create(t *testing.T, app *fiber.App, db *gorm.DB, baseUrl string) {
 		assert.Equal(t, "Product created successfully", body["message"])
 	})
 }
+
+func update(t *testing.T, app *fiber.App, db *gorm.DB, baseUrl string) {
+	t.Run("Update Product", func(t *testing.T) {
+		adminUser := CreateVerifiedTestAdminUser(db)
+
+		loginUrl := fmt.Sprintf("%s/login", "/api/v1/auth")
+		loginData := schemas.LoginSchema{
+			Email:    adminUser.Email,
+			Password: "testpassword",
+		}
+
+		// ### Log in as Admin User
+		// Use ProcessTestBody to send the login request
+		res := ProcessTestBody(t, app, loginUrl, "POST", loginData)
+		assert.Equal(t, 201, res.StatusCode)
+
+		// Parse the login response body to extract the access token
+		body := ParseResponseBody(t, res.Body).(map[string]interface{})
+		assert.Equal(t, "success", body["status"])
+		assert.Equal(t, "Login successful", body["message"])
+
+		// Extract the access token from the login response data
+		tokenData := body["data"].(map[string]interface{})
+		accessToken := tokenData["access"].(string)
+
+		// ### Create new Product
+		product := CreateNewProduct(db, adminUser.ID)
+		url := fmt.Sprintf("%s/%s/update", baseUrl, product.ID)
+		productData := schemas.UpdateProduct{
+			Name:        utils.GetRandomString(5),
+			Brand:       utils.GetRandomString(5),
+			Category:    utils.GetRandomString(5),
+			Description: utils.GetRandomString(5),
+		}
+
+		// Send the request to create a new product, including the access token in the Authorization header
+		res = ProcessTestBody(t, app, url, "PATCH", productData, accessToken)
+		assert.Equal(t, 200, res.StatusCode)
+
+		// Parse and assert the response body for creating a product
+		body = ParseResponseBody(t, res.Body).(map[string]interface{})
+		assert.Equal(t, "success", body["status"])
+		assert.Equal(t, "Product updated successfully", body["message"])
+	})
+}
+
+func delete(t *testing.T, app *fiber.App, db *gorm.DB, baseUrl string) {
+	t.Run("Delete Product", func(t *testing.T) {
+		adminUser := CreateVerifiedTestAdminUser(db)
+
+		loginUrl := fmt.Sprintf("%s/login", "/api/v1/auth")
+		loginData := schemas.LoginSchema{
+			Email:    adminUser.Email,
+			Password: "testpassword",
+		}
+
+		// ### Log in as Admin User
+		// Use ProcessTestBody to send the login request
+		res := ProcessTestBody(t, app, loginUrl, "POST", loginData)
+		assert.Equal(t, 201, res.StatusCode)
+
+		// Parse the login response body to extract the access token
+		body := ParseResponseBody(t, res.Body).(map[string]interface{})
+		assert.Equal(t, "success", body["status"])
+		assert.Equal(t, "Login successful", body["message"])
+
+		// Extract the access token from the login response data
+		tokenData := body["data"].(map[string]interface{})
+		accessToken := tokenData["access"].(string)
+
+		// ### Create new Product
+		product := CreateNewProduct(db, adminUser.ID)
+		url := fmt.Sprintf("%s/%s/delete", baseUrl, product.ID)
+
+		// Send the request to create a new product, including the access token in the Authorization header
+		res = ProcessTestBody(t, app, url, "DELETE", nil, accessToken)
+		assert.Equal(t, 200, res.StatusCode)
+
+		// Parse and assert the response body for creating a product
+		body = ParseResponseBody(t, res.Body).(map[string]interface{})
+		assert.Equal(t, "success", body["status"])
+		assert.Equal(t, "Product deleted successfully", body["message"])
+	})
+}
+
 func TestProduct(t *testing.T) {
 	app := fiber.New()
 	db := Setup(t, app)
@@ -65,6 +150,8 @@ func TestProduct(t *testing.T) {
 
 	// Run Product Endpoint Tests
 	create(t, app, db, BASEURL)
+	update(t, app, db, BASEURL)
+	delete(t, app, db, BASEURL)
 
 	// Drop Tables and Close Connectiom
 	database.DropTables(db)
