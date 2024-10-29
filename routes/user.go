@@ -12,7 +12,8 @@ import (
 func (endpoint Endpoint) GetAllUsers(c *fiber.Ctx) error {
 	db := endpoint.DB
 
-	users, _ := userManager.GetAll(db)
+	var users []*models.User
+	db.Find(&users)
 	if users == nil {
 		return c.Status(404).JSON(utils.RequestErr(utils.ERR_NON_EXISTENT, "Users not found"))
 	}
@@ -32,14 +33,15 @@ func (endpoint Endpoint) GetUserByParamsID(c *fiber.Ctx) error {
 		return c.Status(400).JSON(err)
 	}
 
-	user, _ := userManager.GetById(db, *userId)
-	if user == nil {
+	user := models.User{ID: *userId}
+	db.Take(&user, user)
+	if user.ID == uuid.Nil {
 		return c.Status(404).JSON(utils.RequestErr(utils.ERR_NON_EXISTENT, "User not found"))
 	}
 
 	response := schemas.FindUserByIdResponseSchem{
 		ResponseSchema: SuccessResponse("User Found"),
-		Data:           schemas.UserResponseSchem{Users: user},
+		Data:           schemas.UserResponseSchem{Users: &user},
 	}
 	return c.Status(201).JSON(response)
 }

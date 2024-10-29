@@ -2,16 +2,11 @@ package routes
 
 import (
 	auth "github.com/DanSmirnov48/techno-trades-go-backend/authentication"
-	"github.com/DanSmirnov48/techno-trades-go-backend/managers"
 	"github.com/DanSmirnov48/techno-trades-go-backend/models"
 	"github.com/DanSmirnov48/techno-trades-go-backend/schemas"
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-)
-
-var (
-	userManager = managers.UserManager{}
 )
 
 func (endpoint Endpoint) Login(c *fiber.Ctx) error {
@@ -58,35 +53,34 @@ func (endpoint Endpoint) Logout(c *fiber.Ctx) error {
 
 func (endpoint Endpoint) Register(c *fiber.Ctx) error {
 	db := endpoint.DB
-	reqData := schemas.RegisterUser{}
+	data := schemas.RegisterUser{}
 
 	// Validate request
-	if errCode, errData := ValidateRequest(c, &reqData); errData != nil {
+	if errCode, errData := ValidateRequest(c, &data); errData != nil {
 		return c.Status(*errCode).JSON(errData)
 	}
 
-	userByEmail, _ := userManager.GetByEmail(db, reqData.Email)
-	if userByEmail != nil {
+	user := utils.ConvertStructData(data, models.User{}).(*models.User)
+	// Validate email uniqueness
+	db.Take(&user, models.User{Email: user.Email})
+	if user.ID != uuid.Nil {
 		data := map[string]string{
-			"email": "Email already registered!",
+			"email": "Email already taken!",
 		}
 		return c.Status(422).JSON(utils.RequestErr(utils.ERR_INVALID_ENTRY, "Invalid Entry", data))
 	}
 
 	// Create User
-	newUser := userManager.Create(db, reqData, false, false)
-	if newUser.ID == uuid.Nil {
-		return c.Status(404).JSON(utils.RequestErr(utils.ERR_NETWORK_FAILURE, "Error creating user"))
-	}
+	db.Create(&user)
 
 	// Create Otp
-	otp := models.Otp{UserId: newUser.ID}
+	otp := models.Otp{UserId: user.ID}
 	db.Take(&otp, otp)
 	db.Create(&otp)
 
 	response := schemas.RegisterResponseSchema{
 		ResponseSchema: SuccessResponse("Registration successful"),
-		Data:           schemas.EmailRequestSchema{Email: newUser.Email},
+		Data:           schemas.EmailRequestSchema{Email: user.Email},
 	}
 	return c.Status(201).JSON(response)
 }
@@ -229,10 +223,10 @@ func (endpoint Endpoint) SendPasswordResetOtp(c *fiber.Ctx) error {
 	db.Create(&otp)
 
 	response := schemas.SendPasswordResetOtpResponseSchema{
-		ResponseSchema: SuccessResponse("Password Reset Token sent successful"),
+		ResponseSchema: SuccessResponse("Password otp sent"),
 		Data:           schemas.PasswordResetOtpResponseSchema{Email: user.Email, Otp: otp.Code},
 	}
-	return c.Status(201).JSON(response)
+	return c.Status(200).JSON(response)
 }
 
 func (endpoint Endpoint) SetNewPassword(c *fiber.Ctx) error {
@@ -264,5 +258,5 @@ func (endpoint Endpoint) SetNewPassword(c *fiber.Ctx) error {
 	db.Model(&user).Updates(map[string]interface{}{"Password": data.Password})
 	db.Delete(&otp)
 
-	return c.Status(200).JSON(SuccessResponse("Password updated successfully"))
+	return c.Status(200).JSON(SuccessResponse("Password reset successful"))
 }
