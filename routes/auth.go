@@ -128,6 +128,33 @@ func (endpoint Endpoint) VerifyAccount(c *fiber.Ctx) error {
 	return c.Status(200).JSON(SuccessResponse("Account verification successful"))
 }
 
+func (ep Endpoint) ResendVerificationEmail(c *fiber.Ctx) error {
+	db := ep.DB
+	data := schemas.EmailRequestSchema{}
+
+	// Validate request
+	if errCode, errData := ValidateRequest(c, &data); errData != nil {
+		return c.Status(*errCode).JSON(errData)
+	}
+
+	user := models.User{Email: data.Email}
+	db.Take(&user, user)
+	if user.ID == uuid.Nil {
+		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INCORRECT_EMAIL, "Incorrect Email"))
+	}
+
+	if user.IsEmailVerified {
+		return c.Status(200).JSON(SuccessResponse("Email already verified"))
+	}
+
+	// Send Email
+	otp := models.Otp{UserId: user.ID}
+	db.Take(&otp, otp)
+	db.Create(&otp)
+
+	return c.Status(200).JSON(SuccessResponse("Verification email sent"))
+}
+
 func (endpoint Endpoint) ValidateMe(c *fiber.Ctx) error {
 	db := endpoint.DB
 
@@ -179,4 +206,63 @@ func (endpoint Endpoint) Refresh(c *fiber.Ctx) error {
 		Data:           schemas.TokensResponseSchema{User: user, Access: access, Refresh: refresh},
 	}
 	return c.Status(201).JSON(response)
+}
+
+func (endpoint Endpoint) SendPasswordResetOtp(c *fiber.Ctx) error {
+	db := endpoint.DB
+	data := schemas.EmailRequestSchema{}
+
+	// Validate request
+	if errCode, errData := ValidateRequest(c, &data); errData != nil {
+		return c.Status(*errCode).JSON(errData)
+	}
+
+	user := models.User{Email: data.Email}
+	db.Take(&user, user)
+	if user.ID == uuid.Nil {
+		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INCORRECT_EMAIL, "Incorrect Email"))
+	}
+
+	// Create Otp
+	otp := models.Otp{UserId: user.ID}
+	db.Take(&otp, otp)
+	db.Create(&otp)
+
+	response := schemas.SendPasswordResetOtpResponseSchema{
+		ResponseSchema: SuccessResponse("Password Reset Token sent successful"),
+		Data:           schemas.PasswordResetOtpResponseSchema{Email: user.Email, Otp: otp.Code},
+	}
+	return c.Status(201).JSON(response)
+}
+
+func (endpoint Endpoint) SetNewPassword(c *fiber.Ctx) error {
+	db := endpoint.DB
+	data := schemas.SetNewPasswordSchema{}
+
+	// Validate request
+	if errCode, errData := ValidateRequest(c, &data); errData != nil {
+		return c.Status(*errCode).JSON(errData)
+	}
+
+	user := models.User{Email: data.Email}
+	db.Take(&user, user)
+	if user.ID == uuid.Nil {
+		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INCORRECT_EMAIL, "Incorrect Email"))
+	}
+
+	otp := models.Otp{UserId: user.ID}
+	db.Take(&otp, otp)
+	if otp.ID == uuid.Nil || otp.Code != data.Otp {
+		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INCORRECT_OTP, "Incorrect Otp"))
+	}
+
+	if otp.CheckExpiration() {
+		return c.Status(400).JSON(utils.RequestErr(utils.ERR_EXPIRED_OTP, "Expired Otp"))
+	}
+
+	// Update Users Password & Delete Otp
+	db.Model(&user).Updates(map[string]interface{}{"Password": data.Password})
+	db.Delete(&otp)
+
+	return c.Status(200).JSON(SuccessResponse("Password updated successfully"))
 }

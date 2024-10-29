@@ -3,16 +3,6 @@ package schemas
 import "github.com/DanSmirnov48/techno-trades-go-backend/models"
 
 // REQUEST BODY SCHEMAS
-type PasswordResetOtpRequestSchema struct {
-	Otp uint32 `json:"otp" validate:"required" example:"112233"`
-}
-
-type UserPasswordResetRequestSchema struct {
-	Email       string `json:"email" validate:"required,min=5,email" example:"johndoe@email.com"`
-	NewPassword string `json:"new_password" validate:"required,min=8,max=50" example:"strongpassword"`
-	Otp         uint32 `json:"otp" validate:"required" example:"112233"`
-}
-
 type UpdateUserPasswordRequestSchema struct {
 	CurrentPassword string `json:"current_password" validate:"required,min=8,max=50" example:"strongpassword"`
 	NewPassword     string `json:"new_password" validate:"required,min=8,max=50" example:"strongpassword"`
