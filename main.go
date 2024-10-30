@@ -6,12 +6,19 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/helmet"
+	"github.com/gofiber/swagger"
 
 	"github.com/DanSmirnov48/techno-trades-go-backend/config"
 	"github.com/DanSmirnov48/techno-trades-go-backend/database"
+	_ "github.com/DanSmirnov48/techno-trades-go-backend/docs"
 	"github.com/DanSmirnov48/techno-trades-go-backend/routes"
 )
 
+// @title Your API Title
+// @version 1.0
+// @description This is a sample server.
+// @host localhost:8000
+// @BasePath /api/v1
 func main() {
 	cfg := config.GetConfig()
 	db := database.ConnectDb(cfg)
@@ -28,6 +35,8 @@ func main() {
 		AllowCredentials: true,
 		AllowMethods:     "GET, POST, PUT, PATCH, DELETE, OPTIONS",
 	}))
+
+	app.Get("/swagger/*", swagger.HandlerDefault)
 
 	app.Options("*", func(c *fiber.Ctx) error {
 		return c.SendStatus(204)

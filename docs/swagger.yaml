@@ -1,0 +1,27 @@
+basePath: /api/v1
+definitions:
+  routes.HealthCheckSchema:
+    properties:
+      success:
+        example: pong
+        type: string
+    type: object
+host: localhost:8000
+info:
+  contact: {}
+  description: This is a sample server.
+  title: Your API Title
+  version: "1.0"
+paths:
+  /healthcheck:
+    get:
+      description: This endpoint checks the health of our application.
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/routes.HealthCheckSchema'
+      summary: HealthCheck
+      tags:
+      - HealthCheck
+swagger: "2.0"
