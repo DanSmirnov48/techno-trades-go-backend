@@ -14,8 +14,8 @@ type UpdateUserEmailRequestSchema struct {
 }
 
 type UpdateUserRequestSchema struct {
-	FirstName string `json:"first_name" validate:"required,max=50" example:"John"`
-	LastName  string `json:"last_name" validate:"required,max=50" example:"Doe"`
+	FirstName string `json:"first_name" validate:"max=50" example:"John"`
+	LastName  string `json:"last_name" validate:"max=50" example:"Doe"`
 }
 
 // RESPONSE BODY SCHEMAS
@@ -33,7 +33,7 @@ type UserResponseSchem struct {
 	Users *models.User `json:"users"`
 }
 
-type FindUserByIdResponseSchem struct {
+type SingleUserResponseSchem struct {
 	ResponseSchema
 	Data UserResponseSchem `json:"data"`
 }
@@ -43,7 +43,7 @@ type UsersResponseSchem struct {
 	Length int            `json:"length"`
 }
 
-type FindAllUsersResponseSchem struct {
+type ManyUsersResponseSchem struct {
 	ResponseSchema
 	Data UsersResponseSchem `json:"data"`
 }

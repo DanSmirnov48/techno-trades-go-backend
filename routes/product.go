@@ -156,7 +156,7 @@ func (endpoint Endpoint) UpdateProductDetails(c *fiber.Ctx) error {
 	db.Model(&product).Updates(reqData)
 
 	response := schemas.ProductCreateResponseSchema{
-		ResponseSchema: SuccessResponse("Stock updated successfully"),
+		ResponseSchema: SuccessResponse("Product updated successfully"),
 		Data:           schemas.NewProductResponseSchema{Product: product},
 	}
 	return c.Status(200).JSON(response)

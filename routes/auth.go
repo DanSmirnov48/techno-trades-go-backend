@@ -300,7 +300,10 @@ func (endpoint Endpoint) SendLoginOtp(c *fiber.Ctx) error {
 
 func (endpoint Endpoint) LoginWithOtp(c *fiber.Ctx) error {
 	db := endpoint.DB
-	code, _ := strconv.ParseUint(c.Params("otp"), 10, 32)
+	code, err := strconv.ParseUint(c.Params("otp"), 10, 32)
+	if err != nil {
+		return c.Status(400).JSON(err)
+	}
 
 	otp := models.Otp{Code: uint32(code)}
 	db.Take(&otp, otp)

@@ -18,7 +18,7 @@ func (endpoint Endpoint) GetAllUsers(c *fiber.Ctx) error {
 		return c.Status(404).JSON(utils.RequestErr(utils.ERR_NON_EXISTENT, "Users not found"))
 	}
 
-	response := schemas.FindAllUsersResponseSchem{
+	response := schemas.ManyUsersResponseSchem{
 		ResponseSchema: SuccessResponse("All Users Found"),
 		Data:           schemas.UsersResponseSchem{Users: users, Length: len(users)},
 	}
@@ -39,7 +39,7 @@ func (endpoint Endpoint) GetUserByParamsID(c *fiber.Ctx) error {
 		return c.Status(404).JSON(utils.RequestErr(utils.ERR_NON_EXISTENT, "User not found"))
 	}
 
-	response := schemas.FindUserByIdResponseSchem{
+	response := schemas.SingleUserResponseSchem{
 		ResponseSchema: SuccessResponse("User Found"),
 		Data:           schemas.UserResponseSchem{Users: &user},
 	}
@@ -63,7 +63,11 @@ func (endpoint Endpoint) UpdateSignedInUserPassword(c *fiber.Ctx) error {
 	// Update Users Password
 	db.Model(&user).Updates(map[string]interface{}{"Password": passwordSchema.NewPassword})
 
-	return c.Status(200).JSON(SuccessResponse("Password updated successfully"))
+	response := schemas.SingleUserResponseSchem{
+		ResponseSchema: SuccessResponse("Password updated successfully"),
+		Data:           schemas.UserResponseSchem{Users: user},
+	}
+	return c.Status(201).JSON(response)
 }
 
 func (endpoint Endpoint) SendUserEmailChangeOtp(c *fiber.Ctx) error {
@@ -110,7 +114,11 @@ func (endpoint Endpoint) UpdateUserEmail(c *fiber.Ctx) error {
 	db.Model(&user).Updates(map[string]interface{}{"email": emailSchema.NewEmail})
 	db.Delete(&otp)
 
-	return c.Status(200).JSON(SuccessResponse("Email updated successfully"))
+	response := schemas.SingleUserResponseSchem{
+		ResponseSchema: SuccessResponse("Email updated successfully"),
+		Data:           schemas.UserResponseSchem{Users: user},
+	}
+	return c.Status(201).JSON(response)
 }
 
 func (endpoint Endpoint) DeleteMe(c *fiber.Ctx) error {
@@ -140,5 +148,9 @@ func (endpoint Endpoint) UpdateMe(c *fiber.Ctx) error {
 		return c.Status(401).JSON(utils.RequestErr(utils.ERR_SERVER_ERROR, "Failed to update user information"))
 	}
 
-	return c.Status(200).JSON(SuccessResponse("User updated successfully"))
+	response := schemas.SingleUserResponseSchem{
+		ResponseSchema: SuccessResponse("User updated successfully"),
+		Data:           schemas.UserResponseSchem{Users: user},
+	}
+	return c.Status(201).JSON(response)
 }
