@@ -31,6 +31,8 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	authRouter.Post("/refresh", midw.AuthMiddleware, endpoint.Refresh)
 	authRouter.Post("/forgot-password", midw.RateLimiter, endpoint.SendPasswordResetOtp)
 	authRouter.Post("/set-new-password", endpoint.SetNewPassword)
+	authRouter.Get("/send-login-otp", endpoint.SendLoginOtp)
+	authRouter.Post("/login/:otp", endpoint.LoginWithOtp)
 
 	// Users profile routes (5) for AUTHORIZED users
 	users := api.Group("/users")

@@ -1,7 +1,11 @@
 package routes
 
 import (
+	"fmt"
+	"strconv"
+
 	auth "github.com/DanSmirnov48/techno-trades-go-backend/authentication"
+	"github.com/DanSmirnov48/techno-trades-go-backend/config"
 	"github.com/DanSmirnov48/techno-trades-go-backend/models"
 	"github.com/DanSmirnov48/techno-trades-go-backend/schemas"
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
@@ -259,4 +263,74 @@ func (endpoint Endpoint) SetNewPassword(c *fiber.Ctx) error {
 	db.Delete(&otp)
 
 	return c.Status(200).JSON(SuccessResponse("Password reset successful"))
+}
+
+func (endpoint Endpoint) SendLoginOtp(c *fiber.Ctx) error {
+	db := endpoint.DB
+	data := schemas.EmailRequestSchema{}
+
+	// Validate request
+	if errCode, errData := ValidateRequest(c, &data); errData != nil {
+		return c.Status(*errCode).JSON(errData)
+	}
+
+	user := models.User{Email: data.Email}
+	db.Take(&user, user)
+	if user.ID == uuid.Nil {
+		return c.Status(401).JSON(utils.RequestErr(utils.ERR_INVALID_CREDENTIALS, "Invalid Credentials"))
+	}
+
+	if !user.IsEmailVerified {
+		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNVERIFIED_USER, "Verify your email first"))
+	}
+
+	// Create Otp
+	otp := models.Otp{UserId: user.ID}
+	db.Take(&otp, otp)
+	db.Create(&otp)
+
+	magicLink := fmt.Sprintf("%s/login/%s", config.GetConfig().FrontendURL, "")
+
+	response := schemas.MagicLinkLoginResponseSchema{
+		ResponseSchema: SuccessResponse("MagicLink has been sent"),
+		Data:           schemas.MagicLinkResponseSchema{Link: magicLink},
+	}
+	return c.Status(200).JSON(response)
+}
+
+func (endpoint Endpoint) LoginWithOtp(c *fiber.Ctx) error {
+	db := endpoint.DB
+	code, _ := strconv.ParseUint(c.Params("otp"), 10, 32)
+
+	otp := models.Otp{Code: uint32(code)}
+	db.Take(&otp, otp)
+	if otp.ID == uuid.Nil || otp.Code != uint32(code) {
+		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INCORRECT_OTP, "Incorrect Otp"))
+	}
+
+	if otp.CheckExpiration() {
+		return c.Status(400).JSON(utils.RequestErr(utils.ERR_EXPIRED_OTP, "Expired Otp"))
+	}
+
+	user := models.User{ID: otp.UserId}
+	db.Take(&user, user)
+	if user.ID == uuid.Nil {
+		return c.Status(404).JSON(utils.RequestErr(utils.ERR_INVALID_OWNER, "User Not Found"))
+	}
+
+	db.Delete(&otp)
+
+	// Create Auth Tokens
+	access := auth.GenerateAccessToken(user.ID)
+	refresh := auth.GenerateRefreshToken()
+
+	// Set the access token and refresh token cookies
+	auth.SetAuthCookie(c, auth.AccessToken, access)
+	auth.SetAuthCookie(c, auth.RefreshToken, refresh)
+
+	response := schemas.LoginResponseSchema{
+		ResponseSchema: SuccessResponse("Logged in successfully"),
+		Data:           schemas.TokensResponseSchema{User: &user, Access: access, Refresh: refresh},
+	}
+	return c.Status(201).JSON(response)
 }
