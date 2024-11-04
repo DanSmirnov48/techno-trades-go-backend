@@ -1,13 +1,12 @@
 package routes
 
 import (
-	"fmt"
 	"strconv"
 
 	auth "github.com/DanSmirnov48/techno-trades-go-backend/authentication"
-	"github.com/DanSmirnov48/techno-trades-go-backend/config"
 	"github.com/DanSmirnov48/techno-trades-go-backend/models"
 	"github.com/DanSmirnov48/techno-trades-go-backend/schemas"
+	"github.com/DanSmirnov48/techno-trades-go-backend/senders"
 	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -82,6 +81,8 @@ func (endpoint Endpoint) Register(c *fiber.Ctx) error {
 	db.Take(&otp, otp)
 	db.Create(&otp)
 
+	go senders.SendEmail(user, senders.EmailActivate, &otp.Code)
+
 	response := schemas.RegisterResponseSchema{
 		ResponseSchema: SuccessResponse("Registration successful"),
 		Data:           schemas.EmailRequestSchema{Email: user.Email},
@@ -123,11 +124,13 @@ func (endpoint Endpoint) VerifyAccount(c *fiber.Ctx) error {
 	db.Save(&user)
 	db.Delete(&otp)
 
+	go senders.SendEmail(&user, senders.EmailWelcome, nil)
+
 	return c.Status(200).JSON(SuccessResponse("Account verification successful"))
 }
 
-func (ep Endpoint) ResendVerificationEmail(c *fiber.Ctx) error {
-	db := ep.DB
+func (endpoint Endpoint) ResendVerificationEmail(c *fiber.Ctx) error {
+	db := endpoint.DB
 	data := schemas.EmailRequestSchema{}
 
 	// Validate request
@@ -149,6 +152,8 @@ func (ep Endpoint) ResendVerificationEmail(c *fiber.Ctx) error {
 	otp := models.Otp{UserId: user.ID}
 	db.Take(&otp, otp)
 	db.Create(&otp)
+
+	go senders.SendEmail(&user, senders.EmailActivate, &otp.Code)
 
 	return c.Status(200).JSON(SuccessResponse("Verification email sent"))
 }
@@ -226,11 +231,9 @@ func (endpoint Endpoint) SendPasswordResetOtp(c *fiber.Ctx) error {
 	db.Take(&otp, otp)
 	db.Create(&otp)
 
-	response := schemas.SendPasswordResetOtpResponseSchema{
-		ResponseSchema: SuccessResponse("Password otp sent"),
-		Data:           schemas.PasswordResetOtpResponseSchema{Email: user.Email, Otp: otp.Code},
-	}
-	return c.Status(200).JSON(response)
+	go senders.SendEmail(&user, senders.EmailResetPassword, &otp.Code)
+
+	return c.Status(200).JSON(SuccessResponse("Password otp sent"))
 }
 
 func (endpoint Endpoint) SetNewPassword(c *fiber.Ctx) error {
@@ -262,6 +265,8 @@ func (endpoint Endpoint) SetNewPassword(c *fiber.Ctx) error {
 	db.Model(&user).Updates(map[string]interface{}{"Password": data.Password})
 	db.Delete(&otp)
 
+	go senders.SendEmail(&user, senders.EmailResetPasswordSuccess, nil)
+
 	return c.Status(200).JSON(SuccessResponse("Password reset successful"))
 }
 
@@ -289,13 +294,9 @@ func (endpoint Endpoint) SendLoginOtp(c *fiber.Ctx) error {
 	db.Take(&otp, otp)
 	db.Create(&otp)
 
-	magicLink := fmt.Sprintf("%s/login/%s", config.GetConfig().FrontendURL, "")
+	go senders.SendEmail(&user, senders.EmailOtpLogin, &otp.Code)
 
-	response := schemas.MagicLinkLoginResponseSchema{
-		ResponseSchema: SuccessResponse("MagicLink has been sent"),
-		Data:           schemas.MagicLinkResponseSchema{Link: magicLink},
-	}
-	return c.Status(200).JSON(response)
+	return c.Status(200).JSON(SuccessResponse("Login otp has been sent"))
 }
 
 func (endpoint Endpoint) LoginWithOtp(c *fiber.Ctx) error {
