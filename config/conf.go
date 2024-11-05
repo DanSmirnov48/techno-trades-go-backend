@@ -22,6 +22,8 @@ type Config struct {
 	MailSenderPort            int    `mapstructure:"MAIL_SENDER_PORT"`
 	CORSAllowedOrigins        string `mapstructure:"CORS_ALLOWED_ORIGINS"`
 	FrontendURL               string `mapstructure:"CLIENT_URL"`
+	StripeTestKey             string `mapstructure:"STRIPE_TEST_KEY"`
+	StripeSecretKey           string `mapstructure:"STRIPE_SECRET_KEY"`
 }
 
 func GetConfig(testOpts ...bool) (config Config) {
