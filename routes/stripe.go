@@ -12,6 +12,7 @@ import (
 	"github.com/stripe/stripe-go/v81"
 	"github.com/stripe/stripe-go/v81/checkout/session"
 	"github.com/stripe/stripe-go/v81/customer"
+	"github.com/stripe/stripe-go/v81/webhook"
 	"gorm.io/gorm"
 )
 
@@ -144,4 +145,74 @@ func (endpoint Endpoint) CreateCheckoutSession(c *fiber.Ctx) error {
 func serializeOrders(orders []OrderItem) string {
 	data, _ := json.Marshal(orders)
 	return string(data)
+}
+
+func (endpoint Endpoint) HandleStripeWebhook(c *fiber.Ctx) error {
+	// Read the request body
+	webhookSecret := config.GetConfig().StripeTestKey
+	stripeSignature := c.Get("Stripe-Signature")
+	body := c.Body()
+
+	// Verify webhook signature
+	event, err := webhook.ConstructEvent(body, stripeSignature, webhookSecret)
+	if err != nil {
+		log.Printf("Webhook signature verification failed: %v", err)
+		return c.Status(400).JSON(fiber.Map{"error": "Webhook signature verification failed"})
+	}
+
+	// Handle the checkout.session.completed event
+	if event.Type == "checkout.session.completed" {
+		var session stripe.CheckoutSession
+		err := json.Unmarshal(event.Data.Raw, &session)
+		if err != nil {
+			log.Printf("Error parsing webhook JSON: %v", err)
+			return c.Status(400).JSON(fiber.Map{"error": "Error parsing webhook data"})
+		}
+
+		// Print the full session object for inspection
+		prettyJSON, _ := json.MarshalIndent(session, "", "    ")
+		log.Printf("Full Checkout Session:\n%s\n", string(prettyJSON))
+
+		// Print specific important fields
+		log.Printf("\n=== Checkout Session Summary ===")
+		log.Printf("Session ID: %s", session.ID)
+		log.Printf("Customer ID: %s", session.Customer.ID)
+		log.Printf("Customer Email: %s", session.CustomerEmail)
+		log.Printf("Payment Status: %s", session.PaymentStatus)
+		log.Printf("Amount Total: %d", session.AmountTotal)
+		log.Printf("Currency: %s", session.Currency)
+
+		// Print metadata
+		log.Printf("\n=== Metadata ===")
+		for key, value := range session.Metadata {
+			log.Printf("%s: %s", key, value)
+		}
+
+		// Print line items
+		log.Printf("\n=== Line Items ===")
+		for _, item := range session.LineItems.Data {
+			log.Printf("\nItem Description: %s", item.Description)
+			log.Printf("Quantity: %d", item.Quantity)
+			log.Printf("Unit Amount: %d", item.Price.UnitAmount)
+			log.Printf("Product ID: %s", item.Price.Product.ID)
+
+			log.Printf("Item Metadata:")
+			for key, value := range item.Price.Product.Metadata {
+				log.Printf("  %s: %s", key, value)
+			}
+		}
+
+		// Print customer details
+		if session.Customer != nil {
+			log.Printf("\n=== Customer Details ===")
+			log.Printf("Name: %s", session.Customer.Name)
+			log.Printf("Email: %s", session.Customer.Email)
+			log.Printf("Customer Metadata:")
+			for key, value := range session.Customer.Metadata {
+				log.Printf("  %s: %s", key, value)
+			}
+		}
+	}
+
+	return c.Status(200).JSON(fiber.Map{"received": true})
 }
