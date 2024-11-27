@@ -7,11 +7,14 @@ import (
 	"log"
 
 	"github.com/DanSmirnov48/techno-trades-go-backend/config"
+	"github.com/DanSmirnov48/techno-trades-go-backend/managers"
 	"github.com/DanSmirnov48/techno-trades-go-backend/models"
+	"github.com/DanSmirnov48/techno-trades-go-backend/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stripe/stripe-go/v81"
 	"github.com/stripe/stripe-go/v81/checkout/session"
 	"github.com/stripe/stripe-go/v81/customer"
+	"github.com/stripe/stripe-go/v81/paymentintent"
 	"github.com/stripe/stripe-go/v81/webhook"
 	"gorm.io/gorm"
 )
@@ -19,6 +22,7 @@ import (
 // Initialize Stripe
 func init() {
 	stripe.Key = config.GetConfig().StripeSecretKey
+	productManager = managers.ProductManager{}
 }
 
 type OrderItem struct {
@@ -139,6 +143,73 @@ func (endpoint Endpoint) CreateCheckoutSession(c *fiber.Ctx) error {
 	return c.Status(200).JSON(fiber.Map{
 		"success": true,
 		"url":     session.URL,
+	})
+}
+
+func (endpoint Endpoint) CreatePaymentIntent(c *fiber.Ctx) error {
+	db := endpoint.DB
+	user := RequestUser(c)
+	data := CreateCheckOutSchema{}
+	if errCode, errData := ValidateRequest(c, &data); errData != nil {
+		return c.Status(*errCode).JSON(errData)
+	}
+
+	customer, err := customer.New(&stripe.CustomerParams{
+		Name:  stripe.String(fmt.Sprintf("%s %s", user.FirstName, user.LastName)),
+		Email: stripe.String(user.Email),
+		Metadata: map[string]string{
+			"userId": user.ID.String(),
+			"cart":   serializeOrders(data.Orders),
+		},
+	})
+
+	if err != nil {
+		log.Printf("Stripe customer creation error: %v", err)
+		return c.Status(500).JSON(utils.RequestErr(utils.ERR_SERVER_ERROR, "Failed to create customer"))
+	}
+
+	// Calculate total amount
+	var totalAmount int64 = 0
+	for _, item := range data.Orders {
+
+		productId, err := utils.ParseUUID(item.ProductID)
+		if err != nil {
+			return c.Status(400).JSON(err)
+		}
+
+		product, errCode, errData := productManager.GetById(db, *productId)
+		if errCode != nil {
+			return c.Status(*errCode).JSON(errData)
+		}
+
+		if item.Quantity > product.CountInStock {
+			return c.Status(404).JSON(utils.RequestErr(utils.ERR_NON_EXISTENT, "Insufficient product stock"))
+		}
+
+		// Add to total amount
+		totalAmount += int64(product.Price*100) * int64(item.Quantity)
+	}
+
+	// Create a PaymentIntent with amount and currency
+	pi, err := paymentintent.New(&stripe.PaymentIntentParams{
+		Amount:             stripe.Int64(totalAmount),
+		Customer:           stripe.String(customer.ID),
+		Currency:           stripe.String(string(stripe.CurrencyGBP)),
+		PaymentMethodTypes: stripe.StringSlice([]string{"card", "paypal"}),
+		Metadata: map[string]string{
+			"userId":      user.ID.String(),
+			"cart":        serializeOrders(data.Orders),
+			"totalAmount": fmt.Sprintf("%d", totalAmount),
+		},
+	})
+	if err != nil {
+		log.Printf("Stripe session creation error: %v", err)
+		return c.Status(500).JSON(utils.RequestErr(utils.ERR_SERVER_ERROR, "Failed to create checkout session"))
+	}
+
+	return c.Status(200).JSON(fiber.Map{
+		"success":      true,
+		"clientSecret": pi.ClientSecret,
 	})
 }
 

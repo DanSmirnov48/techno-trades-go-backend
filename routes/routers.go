@@ -67,4 +67,5 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// Reviews Routes (1)
 	stripe := api.Group("/stripe")
 	stripe.Post("/create-checkout-session", midw.AuthMiddleware, endpoint.CreateCheckoutSession)
+	stripe.Post("/create-payment-intent", midw.AuthMiddleware, endpoint.CreatePaymentIntent)
 }
