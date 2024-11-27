@@ -24,6 +24,8 @@ type User struct {
 	IsEmailVerified bool           `json:"-" gorm:"default:false"`
 	Role            Role           `json:"role" gorm:"size:50;not null"`
 	Active          bool           `json:"-" gorm:"default:true"`
+	Access          *string        `gorm:"type:varchar(1000);null;" json:"-"`
+	Refresh         *string        `gorm:"type:varchar(1000);null;" json:"-"`
 	Products        []Product      `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE;"`
 	CreatedAt       time.Time      `json:"created_at" gorm:"not null"`
 	UpdatedAt       time.Time      `json:"updated_at" gorm:"not null"`

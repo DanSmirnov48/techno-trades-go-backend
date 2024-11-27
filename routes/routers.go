@@ -24,7 +24,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	authRouter := api.Group("/auth")
 	authRouter.Post("/register", endpoint.Register)
 	authRouter.Post("/login", midw.RateLimiter, endpoint.Login)
-	authRouter.Get("/logout", endpoint.Logout)
+	authRouter.Get("/logout", midw.AuthMiddleware, endpoint.Logout)
 	authRouter.Post("/verify-account", endpoint.VerifyAccount)
 	authRouter.Post("/resend-verification-email", endpoint.ResendVerificationEmail)
 	authRouter.Get("/validate", endpoint.ValidateMe)

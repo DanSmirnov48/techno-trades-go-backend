@@ -35,6 +35,10 @@ func (endpoint Endpoint) Login(c *fiber.Ctx) error {
 	access := auth.GenerateAccessToken(user.ID)
 	refresh := auth.GenerateRefreshToken()
 
+	user.Access = &access
+	user.Refresh = &refresh
+	db.Save(&user)
+
 	// Set the access token and refresh token cookies
 	auth.SetAuthCookie(c, auth.AccessToken, access)
 	auth.SetAuthCookie(c, auth.RefreshToken, refresh)
@@ -47,6 +51,12 @@ func (endpoint Endpoint) Login(c *fiber.Ctx) error {
 }
 
 func (endpoint Endpoint) Logout(c *fiber.Ctx) error {
+	db := endpoint.DB
+	user := RequestUser(c)
+	user.Access = nil
+	user.Refresh = nil
+	db.Save(user)
+
 	// Remove the access token cookie
 	auth.RemoveAuthCookie(c, auth.AccessToken)
 	auth.RemoveAuthCookie(c, auth.RefreshToken)
@@ -182,9 +192,9 @@ func (endpoint Endpoint) ValidateMe(c *fiber.Ctx) error {
 }
 
 func (endpoint Endpoint) Refresh(c *fiber.Ctx) error {
-	reqData := schemas.RefreshTokenRequestSchema{}
-
+	db := endpoint.DB
 	user := RequestUser(c)
+	reqData := schemas.RefreshTokenRequestSchema{}
 
 	// Validate request
 	if errCode, errData := ValidateRequest(c, &reqData); errData != nil {
@@ -199,6 +209,10 @@ func (endpoint Endpoint) Refresh(c *fiber.Ctx) error {
 	// Create Auth Tokens
 	access := auth.GenerateAccessToken(user.ID)
 	refresh := auth.GenerateRefreshToken()
+
+	user.Access = &access
+	user.Refresh = &refresh
+	db.Save(&user)
 
 	// Set the access token and refresh token cookies
 	auth.SetAuthCookie(c, auth.AccessToken, access)
@@ -327,6 +341,10 @@ func (endpoint Endpoint) LoginWithOtp(c *fiber.Ctx) error {
 	// Create Auth Tokens
 	access := auth.GenerateAccessToken(user.ID)
 	refresh := auth.GenerateRefreshToken()
+
+	user.Access = &access
+	user.Refresh = &refresh
+	db.Save(&user)
 
 	// Set the access token and refresh token cookies
 	auth.SetAuthCookie(c, auth.AccessToken, access)
