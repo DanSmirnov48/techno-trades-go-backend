@@ -168,11 +168,13 @@ func RemoveAuthCookie(c *fiber.Ctx, cookieType CookieType) {
 
 // GoogleUserInfo represents the structure of user data from Google
 type GoogleUserInfo struct {
-	Email     string `json:"email"`
-	Name      string `json:"name"`
-	GoogleID  string `json:"id"`
-	GivenName string `json:"given_name"`
-	Family    string `json:"family_name"`
+	Email           string `json:"email"`
+	Name            string `json:"name"`
+	GoogleID        string `json:"id"`
+	GivenName       string `json:"given_name"`
+	Family          string `json:"family_name"`
+	Avatar          string `json:"picture"`
+	IsEmailVerified bool   `json:"verified_email"`
 }
 
 func ValidateAndFetchGoogleUser(ctx context.Context, oauthConfig *oauth2.Config, db *gorm.DB, code string) (*models.User, error) {
@@ -207,6 +209,22 @@ func ValidateAndFetchGoogleUser(ctx context.Context, oauthConfig *oauth2.Config,
 	}
 
 	user := models.User{Email: googleUser.Email}
+	db.Take(&user, user)
+	if user.ID != uuid.Nil && user.AuthType == models.AuthTypePassword {
+		return nil, errors.New("requires password to sign in to this account")
+	} else if user.ID == uuid.Nil {
+		user := models.User{
+			FirstName:       googleUser.GivenName,
+			LastName:        googleUser.Family,
+			Email:           googleUser.Email,
+			Avatar:          &googleUser.Avatar,
+			IsEmailVerified: googleUser.IsEmailVerified,
+			AuthType:        models.AuthTypeGoogle,
+			Password:        "password123",
+		}
+		// Create User
+		db.Create(&user)
+	}
 	db.Take(&user, user)
 
 	return &user, nil
