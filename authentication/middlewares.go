@@ -56,32 +56,8 @@ func (mid Middleware) RateLimiter(c *fiber.Ctx) error {
 
 func (mid Middleware) Admin(c *fiber.Ctx) error {
 	user, ok := c.Locals("user").(*models.User)
-	if !ok || user == nil || user.Role == models.UserRole {
+	if !ok || user == nil || user.AccountType == models.AccountTypeBuyer {
 		return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNAUTHORIZED_USER, "Unauthorized Access"))
 	}
 	return c.Next()
-}
-
-func (mid Middleware) RestrictTo(roles ...models.Role) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		user, ok := c.Locals("user").(*models.User)
-		if !ok || user == nil {
-			return c.Status(401).JSON(utils.RequestErr(utils.ERR_UNAUTHORIZED_USER, "Unauthorized Access"))
-		}
-
-		// Check if the user's role is in the allowed roles
-		hasPermission := false
-		for _, role := range roles {
-			if user.Role == role {
-				hasPermission = true
-				break
-			}
-		}
-
-		if !hasPermission {
-			return c.Status(401).JSON(utils.RequestErr(utils.ERR_INVALID_AUTH, "Unauthorized Access"))
-		}
-
-		return c.Next()
-	}
 }

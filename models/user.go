@@ -8,11 +8,18 @@ import (
 	"gorm.io/gorm"
 )
 
-type Role string
+type AuthType string
 
 const (
-	UserRole  Role = "user"
-	AdminRole Role = "admin"
+	AuthTypePassword AuthType = "Password"
+	AuthTypeGoogle   AuthType = "Google"
+)
+
+type AccountType string
+
+const (
+	AccountTypeBuyer AccountType = "Buyer"
+	AccountTypeStaff AccountType = "Staff"
 )
 
 type User struct {
@@ -20,9 +27,11 @@ type User struct {
 	FirstName       string         `json:"first_name" gorm:"type: varchar(255);not null" example:"John"`
 	LastName        string         `json:"last_name" gorm:"type: varchar(255);not null" example:"Doe"`
 	Email           string         `json:"email" gorm:"not null;unique;" example:"johndoe@email.com"`
-	Password        string         `json:"-" gorm:"not null"`
+	Avatar          *string        `json:"avatar" gorm:"nullable"`
+	Password        string         `json:"password" gorm:"not null"`
 	IsEmailVerified bool           `json:"-" gorm:"default:false"`
-	Role            Role           `json:"role" gorm:"size:50;not null"`
+	AuthType        AuthType       `json:"authType" gorm:"type:varchar(50);default:'Password'"`
+	AccountType     AccountType    `json:"accountType" gorm:"type:varchar(50);default:'Buyer'"`
 	Active          bool           `json:"-" gorm:"default:true"`
 	Access          *string        `gorm:"type:varchar(1000);null;" json:"-"`
 	Refresh         *string        `gorm:"type:varchar(1000);null;" json:"-"`
@@ -33,12 +42,9 @@ type User struct {
 }
 
 func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
-	if u.Role == "" {
-		u.Role = UserRole
-	}
+	hashedPassword := utils.HashPassword(u.Password)
+	u.Password = hashedPassword
 
-	// Hash password
-	u.Password = utils.HashPassword(u.Password)
 	return
 }
 

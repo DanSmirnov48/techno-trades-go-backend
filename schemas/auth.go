@@ -9,11 +9,10 @@ type LoginSchema struct {
 }
 
 type RegisterUser struct {
-	FirstName        string `json:"first_name" validate:"required,max=50" example:"John"`
-	LastName         string `json:"last_name" validate:"required,max=50" example:"Doe"`
-	Email            string `json:"email" validate:"required,min=5,email" example:"johndoe@email.com"`
-	Password         string `json:"password" validate:"required,min=8,max=50" example:"strongpassword"`
-	VerificationCode int64  `json:"verification_code"`
+	FirstName string `json:"first_name" validate:"required,max=50" example:"John"`
+	LastName  string `json:"last_name" validate:"required,max=50" example:"Doe"`
+	Email     string `json:"email" validate:"required,min=5,email" example:"johndoe@email.com"`
+	Password  string `json:"password" validate:"required,min=8,max=50" example:"strongpassword"`
 }
 
 type EmailRequestSchema struct {
