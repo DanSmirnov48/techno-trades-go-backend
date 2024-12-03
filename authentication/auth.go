@@ -1,7 +1,11 @@
 package authentication
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/DanSmirnov48/techno-trades-go-backend/config"
@@ -10,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"golang.org/x/oauth2"
 	"gorm.io/gorm"
 )
 
@@ -159,4 +164,50 @@ func RemoveAuthCookie(c *fiber.Ctx, cookieType CookieType) {
 		Secure:   false,                      // Update this if your original cookie is secure
 		SameSite: "Strict",                   // CSRF protection
 	})
+}
+
+// GoogleUserInfo represents the structure of user data from Google
+type GoogleUserInfo struct {
+	Email     string `json:"email"`
+	Name      string `json:"name"`
+	GoogleID  string `json:"id"`
+	GivenName string `json:"given_name"`
+	Family    string `json:"family_name"`
+}
+
+func ValidateAndFetchGoogleUser(ctx context.Context, oauthConfig *oauth2.Config, db *gorm.DB, code string) (*models.User, error) {
+	// Exchange code for token
+	token, err := oauthConfig.Exchange(ctx, code)
+	if err != nil {
+		return nil, errors.New("failed to exchange token")
+	}
+
+	// Get user info from Google
+	client := oauthConfig.Client(ctx, token)
+	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
+	if err != nil {
+		return nil, errors.New("failed to get user info")
+	}
+	defer resp.Body.Close()
+
+	// Check response status
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.New("failed to fetch user info from Google")
+	}
+
+	// Parse Google user info
+	var googleUser GoogleUserInfo
+	if err := json.NewDecoder(resp.Body).Decode(&googleUser); err != nil {
+		return nil, errors.New("failed to parse user info")
+	}
+
+	// Validate required fields
+	if googleUser.Email == "" || googleUser.GoogleID == "" {
+		return nil, errors.New("incomplete user information from Google")
+	}
+
+	user := models.User{Email: googleUser.Email}
+	db.Take(&user, user)
+
+	return &user, nil
 }

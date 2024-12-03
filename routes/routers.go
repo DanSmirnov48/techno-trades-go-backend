@@ -33,6 +33,8 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	authRouter.Post("/set-new-password", endpoint.SetNewPassword)
 	authRouter.Get("/send-login-otp", endpoint.SendLoginOtp)
 	authRouter.Post("/login/:otp", endpoint.LoginWithOtp)
+	authRouter.Get("/google", endpoint.GoogleLogin)
+	authRouter.Get("/google/callback", endpoint.GoogleCallback)
 
 	// Users profile routes (5) for AUTHORIZED users
 	users := api.Group("/users")

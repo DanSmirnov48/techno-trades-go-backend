@@ -24,6 +24,8 @@ type Config struct {
 	FrontendURL               string `mapstructure:"CLIENT_URL"`
 	StripeTestKey             string `mapstructure:"STRIPE_TEST_KEY"`
 	StripeSecretKey           string `mapstructure:"STRIPE_SECRET_KEY"`
+	GoogleClientId            string `mapstructure:"GOOGLE_CLIENT_ID"`
+	GoogleClientSecret        string `mapstructure:"GOOGLE_CLIENT_SECRET"`
 }
 
 func GetConfig(testOpts ...bool) (config Config) {
